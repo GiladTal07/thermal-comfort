@@ -1,6 +1,6 @@
 # Thermal Comfort Monitor
 
-A Raspberry Pi-based device that measures environmental conditions in real time, calculates ISO 7730 thermal comfort indices, and emails an AI-generated comfort analysis — triggered by the press of a physical button.
+A Raspberry Pi-based device that measures environmental conditions in real time, calculates ISO 7730 thermal comfort indices, and emails an AI-generated comfort analysis — triggered by the press of a physical button. Runs headlessly with no monitor required.
 
 ## Overview
 
@@ -17,7 +17,7 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 
 | Component | Purpose |
 |---|---|
-| Raspberry Pi (any model with I²C + GPIO) | Host / controller |
+| Raspberry Pi 5 | Host / controller |
 | SI7021 | Air temperature and relative humidity |
 | MLX90640 (32×24 IR array) | Mean radiant temperature + thermal heatmap |
 | PAV3015 (I²C, address `0x28`) | Air speed (m/s) |
@@ -38,69 +38,136 @@ thermal-comfort/
 
 ## Setup
 
-### 1. Install dependencies
+### 1. Clone the repository
+
+```bash
+cd ~
+git clone https://github.com/GiladTal07/thermal-comfort
+cd thermal-comfort
+```
+
+### 2. Install dependencies
 
 ```bash
 pip install pythermalcomfort anthropic adafruit-circuitpython-si7021 \
             adafruit-circuitpython-mlx90640 smbus2 gpiozero \
-            matplotlib scipy numpy
+            matplotlib scipy numpy --break-system-packages
 ```
 
-### 2. Enable I²C on the Pi
+### 3. Enable I²C
 
 ```bash
 sudo raspi-config  # Interface Options → I2C → Enable
+sudo reboot
 ```
 
-### 3. Configure environment variables
+### 4. Configure environment variables
 
-The following environment variables must be set before running:
+Create a `.env` file inside the project folder:
 
 ```bash
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-export SMTP_USER="your-gmail-address@gmail.com"
-export SMTP_PASSWORD="your-gmail-app-password"
-export SMTP_RECIPIENT="recipient@example.com"
+nano ~/thermal-comfort/.env
+```
+
+Add the following:
+
+```
+ANTHROPIC_API_KEY=your-anthropic-api-key
+SMTP_USER=your-gmail-address@gmail.com
+SMTP_PASSWORD=your-gmail-app-password
+SMTP_RECIPIENT=recipient@example.com
+```
+
+Lock down the file permissions:
+
+```bash
+chmod 600 ~/thermal-comfort/.env
 ```
 
 For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833) rather than your account password.
 
-## Usage
+### 5. Set up the systemd service
 
-### Button-triggered (hardware)
-
-With a button wired to GPIO 17:
+Create the service file:
 
 ```bash
-python llm.py
-# Waiting for button press...
+sudo nano /etc/systemd/system/thermal-comfort.service
 ```
 
-Press the button — the device captures a full reading, runs the analysis, and sends the email.
+Paste the following, replacing `your-username` with your actual username:
+
+```ini
+[Unit]
+Description=Thermal Comfort Monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=your-username
+WorkingDirectory=/home/your-username/thermal-comfort
+EnvironmentFile=/home/your-username/thermal-comfort/.env
+ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/llm.py
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable thermal-comfort
+sudo systemctl start thermal-comfort
+```
+
+The service will now start automatically on every boot with no monitor needed.
+
+## Usage
+
+### Button-triggered (normal operation)
+
+With the service running, simply press the button wired to GPIO 17. The device will:
+
+- Capture a full reading
+- Run the Claude analysis
+- Email the report
+- Restart and wait for the next press
 
 ### Manual run on an existing data folder
 
-If you already have a captured data folder (e.g. from running `readings.py` directly):
-
 ```bash
-python llm.py data/2025-01-15_14-30-00
+python3 llm.py data/2025-01-15_14-30-00
 ```
 
 ### Capture only (no LLM)
 
-To take a reading and save the data without running the analysis:
-
 ```bash
-python readings.py
+python3 readings.py
 ```
 
 Each run saves its output to `data/<timestamp>/` containing:
 
 ```
 data/2025-01-15_14-30-00/
-├── readings.txt          # Pipe-delimited sensor log
+├── readings.txt             # Pipe-delimited sensor log
 ├── 2025-01-15_14-30-00.jpg  # Pi camera photo
 └── 2025-01-15_14-30-00.png  # Thermal heatmap
+```
+
+### Monitoring (over SSH)
+
+```bash
+# Check service status
+sudo systemctl status thermal-comfort
+
+# Watch live output
+sudo journalctl -u thermal-comfort -f
+
+# Restart after a code change
+sudo systemctl restart thermal-comfort
 ```
 
 ## Comfort Calculation
@@ -112,9 +179,7 @@ PMV and PPD are computed using [`pythermalcomfort`](https://pythermalcomfort.rea
 | `met` | 1.1 | Metabolic rate (light sedentary activity) |
 | `clo` | 0.61 | Clothing insulation (typical light office wear) |
 
-Air speed from the sensor is automatically converted to relative air speed using `v_relative()` before the PMV calculation.
-
-Input validation flags out-of-range conditions (e.g. temperature outside 10–30 °C, air speed above 1 m/s) and includes them as notes in the reading.
+Air speed from the sensor is automatically converted to relative air speed using `v_relative()` before the PMV calculation. Input validation flags out-of-range conditions (e.g. temperature outside 10–30 °C, air speed above 1 m/s) and includes them as notes in the reading.
 
 ## LLM Analysis
 
@@ -124,7 +189,7 @@ The Claude API (`claude-haiku-4-5`) receives:
 - HQ JPEG photo of the space
 - Bicubic-upscaled inferno thermal heatmap (brighter = warmer)
 
-Claude is prompted as a thermal comfort expert and asked to cover: current comfort level based on PMV/PPD, temperature distribution and hot/cold spots in the heatmap, observations from the photo, and actionable recommendations.
+Claude is prompted as a thermal comfort expert and asked to cover: current comfort level based on PMV/PPD, temperature distribution and hot/cold spots in the heatmap, observations from the photo, and actionable recommendations. The analysis is emailed automatically after each reading.
 
 ## PMV / PPD Reference
 
