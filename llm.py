@@ -24,7 +24,7 @@ def parse_readings(text: str) -> str:
 		"Air Temperature (°C)",
 		"Humidity (%)",
 		"Mean Radiant Temperature (°C)",
-		"Air Speed (m/s)"
+		"Air Speed (m/s)",
 		"PMV",
 		"PPD (%)",
 		"TSV",
