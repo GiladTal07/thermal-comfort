@@ -24,7 +24,7 @@ def parse_readings(text: str) -> str:
 		"Air Temperature (°C)",
 		"Humidity (%)",
 		"Mean Radiant Temperature (°C)",
-		"Air Speed (m/s)"
+		"Air Speed (m/s)",
 		"PMV",
 		"PPD (%)",
 		"TSV",
@@ -107,7 +107,7 @@ def run(folder_path: str) -> None:
 			output.append(text)
 	
 	print()
-	send_email("".join(output))
+	send_email("".join(output), jpg_files[0], png_files[0])
 
 if __name__ == "__main__":
 	if len(sys.argv) == 2:
