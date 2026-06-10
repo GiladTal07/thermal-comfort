@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    color: #1a1a2e;
+    background: #f0f2f5;
+  }
+
+  /* ── Header ───────────────────────────────────────────── */
+  .report-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #2a3f6f 100%);
+    color: #fff;
+    padding: 28px 36px 24px;
+  }
+  .report-header .label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #8fa8c8;
+    margin-bottom: 6px;
+  }
+  .report-header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+
+  /* ── Main card ────────────────────────────────────────── */
+  .report-body {
+    background: #fff;
+    max-width: 760px;
+    margin: 24px auto;
+    border-radius: 12px;
+    padding: 36px 40px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  /* ── Section headings ─────────────────────────────────── */
+  h2 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #7a8fa6;
+    margin: 36px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #edf0f4;
+  }
+  h2:first-of-type { margin-top: 0; }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin: 20px 0 8px;
+  }
+
+  p { margin-bottom: 12px; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Lists ────────────────────────────────────────────── */
+  ul, ol {
+    padding-left: 22px;
+    margin: 8px 0 16px;
+  }
+  li { margin: 7px 0; }
+  li:first-child { margin-top: 0; }
+
+  /* ── Tables ───────────────────────────────────────────── */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 14px 0 20px;
+    font-size: 14px;
+  }
+  th {
+    background: #f4f6f9;
+    color: #7a8fa6;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 2px solid #e4e8ee;
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f2f5;
+    vertical-align: top;
+  }
+  td:first-child { color: #5b6a7a; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+
+  strong { font-weight: 600; color: #1a1a2e; }
+  em { color: #5b6a7a; }
+
+  code {
+    background: #f4f6f9;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12.5px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #edf0f4;
+    margin: 28px 0;
+  }
+
+  /* ── Appendix block ───────────────────────────────────── */
+  .appendix {
+    max-width: 760px;
+    margin: 0 auto 32px;
+    background: #f8f9fb;
+    border-radius: 12px;
+    padding: 28px 40px 32px;
+    border: 1px solid #e4e8ee;
+  }
+  .appendix h2 {
+    color: #9aaaba;
+    border-bottom-color: #e4e8ee;
+    margin-top: 28px;
+  }
+  .appendix h2:first-of-type { margin-top: 0; }
+
+  .img-block { margin: 14px 0 4px; }
+  .img-block img {
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid #dde2ea;
+    display: block;
+  }
+  .img-label {
+    font-size: 12px;
+    color: #9aaaba;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="report-header">
+  <p class="label">Thermal Comfort Monitor</p>
+  <h1>Comfort Assessment Report</h1>
+</div>
+<div class="report-body">
+{content}
+</div>
+{images}
+</body>
+</html>
