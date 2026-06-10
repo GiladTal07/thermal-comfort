@@ -28,21 +28,23 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 
 ```
 thermal-comfort/
-├── src/
-│   ├── sensors.py          # Hardware I/O: reads SI7021, MLX90640, PAV3015, Pi camera; blur detection
+├── src/                    # Device application code
+│   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, Pi camera; blur detection
 │   ├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
-│   ├── pmv_calculator.py   # Calculates PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
+│   ├── pmv_calculator.py   # PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
 │   ├── readings.py         # Orchestrates a full capture: sensors → photo → heatmap → PMV → log
 │   ├── llm.py              # Sends data + images to Claude; emails the analysis
 │   ├── mailer.py           # HTML email dispatch via Gmail (SMTP)
 │   └── template.html       # Email report template (professional layout with appendix sections)
+├── server/                 # HTTP server and AP setup
+│   ├── server.py           # Flask HTTP server: all API endpoints + web dashboard
+│   └── setup_ap.sh         # One-time script: configures hostapd + dnsmasq Wi-Fi AP
 └── data/
-    ├── db.py               # SQLite storage: insert, query, 90-day auto-prune
-    ├── readings.db         # SQLite database — all readings, 90-day retention (created on first run)
     └── <timestamp>/        # One folder per run
-        ├── readings.txt        # Pipe-delimited sensor log (read by llm.py)
-        ├── <timestamp>.jpg     # Pi camera photo
-        └── <timestamp>.png     # Thermal heatmap
+        ├── readings.txt            # Pipe-delimited sensor log (read by llm.py)
+        ├── <timestamp>.jpg         # Pi camera photo
+        ├── <timestamp>.png         # Thermal heatmap
+        └── <timestamp>_thermal.json  # Raw 24×32 float array (served by GET /reading/latest/thermal)
 ```
 
 ## Setup
@@ -60,7 +62,7 @@ cd thermal-comfort
 ```bash
 pip install pythermalcomfort anthropic adafruit-circuitpython-si7021 \
             adafruit-circuitpython-mlx90640 smbus2 gpiozero \
-            matplotlib scipy numpy opencv-python markdown --break-system-packages
+            matplotlib scipy numpy opencv-python markdown flask --break-system-packages
 ```
 
 ### 3. Enable I²C
@@ -95,7 +97,17 @@ chmod 600 ~/thermal-comfort/.env
 
 For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833) rather than your account password.
 
-### 5. Set up the systemd service
+### 5. Configure the Wi-Fi access point
+
+Run the setup script once as root. It installs `hostapd` and `dnsmasq`, assigns a static IP (`192.168.4.1`) to `wlan0`, and creates an AP whose SSID ends with the last 4 characters of the device's MAC address:
+
+```bash
+sudo bash server/setup_ap.sh
+```
+
+The default AP password is `comfort1234`. Note the printed SSID and password — these go on the device label. The password can be changed later via `POST /config/ap-password`.
+
+### 6. Set up the systemd service
 
 Create the service file:
 
@@ -116,9 +128,10 @@ Type=simple
 User=your-username
 WorkingDirectory=/home/your-username/thermal-comfort
 EnvironmentFile=/home/your-username/thermal-comfort/.env
-ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/src/llm.py
+ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/server/server.py
 Restart=always
 RestartSec=1
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target
@@ -136,16 +149,21 @@ The service will now start automatically on every boot with no monitor needed.
 
 ## Usage
 
-### Button-triggered (normal operation)
+### Normal operation
 
-With the service running, simply press the button wired to GPIO 17. The device will:
+With the service running, the device broadcasts its Wi-Fi AP and waits. Trigger a reading from the phone app (`POST /trigger`) or from the command line:
 
-- Capture a full reading
-- Run the Claude analysis
-- Email the report
-- Restart and wait for the next press
+```bash
+curl -X POST http://192.168.4.1/trigger
+```
 
-### Manual run on an existing data folder
+The device will capture sensors + photo, call Claude, and email the report. Poll `GET /status` to track progress.
+
+### Web dashboard
+
+Open `http://192.168.4.1` in a browser connected to the device AP to see the latest reading, full history table, and a CSV export link.
+
+### Manual LLM run on an existing data folder
 
 ```bash
 python3 src/llm.py data/2025-01-15_14-30-00
@@ -242,3 +260,4 @@ ISO 7730 recommends keeping PMV between **−0.5 and +0.5** (PPD < 10%).
 - [matplotlib](https://matplotlib.org/) + [scipy](https://scipy.org/) — Thermal heatmap generation
 - [opencv-python](https://pypi.org/project/opencv-python/) — Laplacian variance blur detection on camera photos
 - [markdown](https://python-markdown.github.io/) — Converts Claude's markdown output to HTML for the email report
+- [flask](https://flask.palletsprojects.com/) — Device HTTP server and web dashboard

@@ -2,8 +2,6 @@ import sys
 import base64
 import anthropic
 from pathlib import Path
-from gpiozero import Button
-from readings import capture_data
 from mailer import send_email
 
 SYSTEM_PROMPT = """\
@@ -137,14 +135,6 @@ def run(folder_path: str) -> None:
 	send_email("".join(output), jpg_files[0], png_files[0])
 
 if __name__ == "__main__":
-	if len(sys.argv) == 2:
-		run(sys.argv[1])
-	elif len(sys.argv) == 1:
-		btn = Button(17, pull_up=True, bounce_time=0.1)
-		print("Waiting for button press...")
-		btn.wait_for_press()
-		print("Button pressed - capturing data...")
-		folder = capture_data()
-		run(folder)
-	else:
-		raise ValueError(f"Too many arguments. Usage: python {sys.argv[0]} [folder_path]")
+	if len(sys.argv) != 2:
+		raise ValueError(f"Usage: python {sys.argv[0]} <folder_path>")
+	run(sys.argv[1])
