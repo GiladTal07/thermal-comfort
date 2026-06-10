@@ -28,12 +28,13 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 
 ```
 thermal-comfort/
-├── sensors.py          # Hardware I/O: reads SI7021, MLX90640, PAV3015, Pi camera
+├── sensors.py          # Hardware I/O: reads SI7021, MLX90640, PAV3015, Pi camera; blur detection
 ├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
 ├── pmv_calculator.py   # Calculates PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
 ├── readings.py         # Orchestrates a full capture: sensors → photo → heatmap → PMV → log
 ├── llm.py              # Sends data + images to Claude; emails the analysis
-└── mailer.py           # SMTP email dispatch via Gmail
+├── mailer.py           # HTML email dispatch via Gmail (SMTP)
+└── template.html       # Email report template (professional layout with appendix sections)
 ```
 
 ## Setup
@@ -51,7 +52,7 @@ cd thermal-comfort
 ```bash
 pip install pythermalcomfort anthropic adafruit-circuitpython-si7021 \
             adafruit-circuitpython-mlx90640 smbus2 gpiozero \
-            matplotlib scipy numpy --break-system-packages
+            matplotlib scipy numpy opencv-python markdown --break-system-packages
 ```
 
 ### 3. Enable I²C
@@ -157,6 +158,8 @@ data/2025-01-15_14-30-00/
 └── 2025-01-15_14-30-00.png  # Thermal heatmap
 ```
 
+If the photo's Laplacian variance falls below the blur threshold (100.0), the reading is flagged `BLURRY PHOTO` in the notes field. If any individual sensor fails, the fault is recorded and the reading continues with the remaining sensors.
+
 ### Monitoring (over SSH)
 
 ```bash
@@ -181,6 +184,8 @@ PMV and PPD are computed using [`pythermalcomfort`](https://pythermalcomfort.rea
 
 Air speed from the sensor is automatically converted to relative air speed using `v_relative()` before the PMV calculation. Input validation flags out-of-range conditions (e.g. temperature outside 10–30 °C, air speed above 1 m/s) and includes them as notes in the reading.
 
+`met` and `clo` can be overridden at runtime by passing them to `capture_data(met=..., clo=...)` or `readings.py`.
+
 ## LLM Analysis
 
 The Claude API (`claude-haiku-4-5`) receives:
@@ -189,7 +194,18 @@ The Claude API (`claude-haiku-4-5`) receives:
 - HQ JPEG photo of the space
 - Bicubic-upscaled inferno thermal heatmap (brighter = warmer)
 
-Claude is prompted as a thermal comfort expert and asked to cover: current comfort level based on PMV/PPD, temperature distribution and hot/cold spots in the heatmap, observations from the photo, and actionable recommendations. The analysis is emailed automatically after each reading.
+The report is structured in six sections, modeled on a doctor's visit summary:
+
+| Section | Content |
+|---|---|
+| **Summary** | 2–3 sentence verdict: overall comfort level, PMV/PPD figures, one priority action |
+| **Room Description** | What the camera photo shows — layout, windows, blinds, occupancy |
+| **Comfort Assessment** | PMV/PPD/TSV interpreted in plain language against ISO 7730 bands |
+| **Findings** | Notable observations from the heatmap and sensors (radiant asymmetry, humidity, hot/cold zones) |
+| **Recommendations** | Individual occupant actions only — blinds, personal fan, extra layer, seat change, etc. Building systems are not criticized unless a malfunction is detected |
+| **Appendix A — Sensor Data** | Full table of raw sensor values |
+
+The emailed report also includes **Appendix B** (room photo) and **Appendix C** (thermal heatmap) rendered in a styled appendix block, separate from the main report body.
 
 ## PMV / PPD Reference
 
@@ -214,3 +230,5 @@ ISO 7730 recommends keeping PMV between **−0.5 and +0.5** (PPD < 10%).
 - [smbus2](https://pypi.org/project/smbus2/) — I²C communication for PAV3015 air speed sensor
 - [gpiozero](https://gpiozero.readthedocs.io/) — GPIO button input
 - [matplotlib](https://matplotlib.org/) + [scipy](https://scipy.org/) — Thermal heatmap generation
+- [opencv-python](https://pypi.org/project/opencv-python/) — Laplacian variance blur detection on camera photos
+- [markdown](https://python-markdown.github.io/) — Converts Claude's markdown output to HTML for the email report
