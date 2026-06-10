@@ -1,0 +1,16 @@
+.env
+
+# Planning docs — kept local only
+plan.md
+prd.md
+specs.md
+to-do.md
+
+# Runtime data
+data/readings.db
+data/*/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

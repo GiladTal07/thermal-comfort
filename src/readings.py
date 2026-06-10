@@ -1,18 +1,21 @@
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from sensors import read_sensor_values, capture_photo, check_focus
 from thermal_map import save_maps
 from pmv_calculator import calculate_pmv, DEFAULT_CLO, DEFAULT_MET
+
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_project_root, 'data'))
 from db import init_db, insert_reading, prune_old_readings
 
 
 def capture_data(met=DEFAULT_MET, clo=DEFAULT_CLO) -> str:
     init_db()
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    run_dir = os.path.join(script_dir, 'data', timestamp)
+    run_dir = os.path.join(_project_root, 'data', timestamp)
     os.makedirs(run_dir)
 
     air_temp, humidity, mean_radiant, thermal, air_speed, sensor_faults = read_sensor_values()

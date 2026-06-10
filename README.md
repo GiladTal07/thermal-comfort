@@ -28,13 +28,21 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 
 ```
 thermal-comfort/
-├── sensors.py          # Hardware I/O: reads SI7021, MLX90640, PAV3015, Pi camera; blur detection
-├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
-├── pmv_calculator.py   # Calculates PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
-├── readings.py         # Orchestrates a full capture: sensors → photo → heatmap → PMV → log
-├── llm.py              # Sends data + images to Claude; emails the analysis
-├── mailer.py           # HTML email dispatch via Gmail (SMTP)
-└── template.html       # Email report template (professional layout with appendix sections)
+├── src/
+│   ├── sensors.py          # Hardware I/O: reads SI7021, MLX90640, PAV3015, Pi camera; blur detection
+│   ├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
+│   ├── pmv_calculator.py   # Calculates PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
+│   ├── readings.py         # Orchestrates a full capture: sensors → photo → heatmap → PMV → log
+│   ├── llm.py              # Sends data + images to Claude; emails the analysis
+│   ├── mailer.py           # HTML email dispatch via Gmail (SMTP)
+│   └── template.html       # Email report template (professional layout with appendix sections)
+└── data/
+    ├── db.py               # SQLite storage: insert, query, 90-day auto-prune
+    ├── readings.db         # SQLite database — all readings, 90-day retention (created on first run)
+    └── <timestamp>/        # One folder per run
+        ├── readings.txt        # Pipe-delimited sensor log (read by llm.py)
+        ├── <timestamp>.jpg     # Pi camera photo
+        └── <timestamp>.png     # Thermal heatmap
 ```
 
 ## Setup
@@ -108,7 +116,7 @@ Type=simple
 User=your-username
 WorkingDirectory=/home/your-username/thermal-comfort
 EnvironmentFile=/home/your-username/thermal-comfort/.env
-ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/llm.py
+ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/src/llm.py
 Restart=always
 RestartSec=1
 
@@ -140,22 +148,24 @@ With the service running, simply press the button wired to GPIO 17. The device w
 ### Manual run on an existing data folder
 
 ```bash
-python3 llm.py data/2025-01-15_14-30-00
+python3 src/llm.py data/2025-01-15_14-30-00
 ```
 
 ### Capture only (no LLM)
 
 ```bash
-python3 readings.py
+python3 src/readings.py
 ```
 
-Each run saves its output to `data/<timestamp>/` containing:
+Each run appends a row to `data/readings.db` and saves its files to `data/<timestamp>/`:
 
 ```
-data/2025-01-15_14-30-00/
-├── readings.txt             # Pipe-delimited sensor log
-├── 2025-01-15_14-30-00.jpg  # Pi camera photo
-└── 2025-01-15_14-30-00.png  # Thermal heatmap
+data/
+├── readings.db                      # SQLite — all readings, pruned to 90 days
+└── 2025-01-15_14-30-00/
+    ├── readings.txt                 # Pipe-delimited log (read by llm.py)
+    ├── 2025-01-15_14-30-00.jpg      # Pi camera photo
+    └── 2025-01-15_14-30-00.png      # Thermal heatmap
 ```
 
 If the photo's Laplacian variance falls below the blur threshold (100.0), the reading is flagged `BLURRY PHOTO` in the notes field. If any individual sensor fails, the fault is recorded and the reading continues with the remaining sensors.
