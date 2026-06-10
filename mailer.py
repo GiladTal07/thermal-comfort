@@ -19,21 +19,27 @@ def send_email(body: str, photo: Path | None = None, heatmap: Path | None = None
 
     images_html = ""
     if photo or heatmap:
-        images_html += "<hr>"
+        images_html += '<div class="appendix">'
         if photo:
             images_html += (
+                '<h2>Appendix B &mdash; Room Photo</h2>'
                 '<div class="img-block">'
                 '<img src="cid:photo">'
-                '<p class="img-label">Camera photo</p>'
-                "</div>"
+                '<p class="img-label">Camera photo &middot; 1920 &times; 1080</p>'
+                '</div>'
             )
         if heatmap:
             images_html += (
+                '<h2>Appendix C &mdash; Thermal Heatmap</h2>'
                 '<div class="img-block">'
                 '<img src="cid:heatmap">'
-                '<p class="img-label">Thermal heatmap (MLX90640)</p>'
-                "</div>"
+                '<p class="img-label">'
+                'MLX90640 infrared array &middot; bicubic-upscaled &middot; '
+                'inferno colormap (brighter&nbsp;=&nbsp;warmer)'
+                '</p>'
+                '</div>'
             )
+        images_html += '</div>'
 
     html_content = markdown.markdown(body, extensions=["tables", "extra"])
     html_body = template.replace("{content}", html_content).replace("{images}", images_html)

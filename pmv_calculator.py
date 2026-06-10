@@ -1,16 +1,13 @@
 from pythermalcomfort.models import pmv_ppd_iso
 from pythermalcomfort.utilities import v_relative, clo_dynamic_iso
 
-
 DEFAULT_CLO = 0.61
 DEFAULT_MET = 1.1
 
-
 def calculate_pmv(air_temp, humidity, mrt, air_speed, clo=DEFAULT_CLO, met=DEFAULT_MET):
+    if any(v is None for v in [air_temp, humidity, mrt, air_speed]):
+        raise ValueError(f"Cannot calculate PMV: missing sensor values")
     vr  = v_relative(v=air_speed, met=met)
-    # clo_d = clo_dynamic_iso(clo=clo, met=met, v=air_speed)
-    
-    # print(f"\nair_temp={air_temp}, humidity={humidity}, mrt={mrt}, vr={vr}, clo_d={clo}")
     
     notes = ""
     if (air_temp<10):
@@ -37,7 +34,6 @@ def calculate_pmv(air_temp, humidity, mrt, air_speed, clo=DEFAULT_CLO, met=DEFAU
         clo=clo,
         model="7730-2005"
     )
-    # print(result)
 
     pmv = round(result.pmv, 2)
     ppd = round(result.ppd, 1)
