@@ -38,7 +38,7 @@ thermal-comfort/
 │   └── template.html       # Email report template (professional layout with appendix sections)
 ├── server/                 # HTTP server and AP setup
 │   ├── server.py           # Flask HTTP server: all API endpoints + web dashboard
-│   └── setup_ap.sh         # One-time script: configures hostapd + dnsmasq Wi-Fi AP
+│   └── setup_ap.sh         # One-time script: configures Wi-Fi AP via nmcli (NetworkManager)
 └── data/
     └── latest/             # Overwritten on every capture — only the most recent reading is kept
         ├── readings.txt        # Pipe-delimited sensor values
@@ -99,7 +99,7 @@ For Gmail, use an [App Password](https://support.google.com/accounts/answer/1858
 
 ### 5. Configure the Wi-Fi access point
 
-Run the setup script once as root. It installs `hostapd` and `dnsmasq`, assigns a static IP (`192.168.4.1`) to `wlan0`, and creates an AP whose SSID ends with the last 4 characters of the device's MAC address:
+Run the setup script once as root. It uses `nmcli` (NetworkManager) to create a permanent AP connection on `wlan0` with a static IP (`192.168.4.1`) and DHCP for clients. The SSID ends with the last 4 characters of the device's MAC address:
 
 ```bash
 sudo bash server/setup_ap.sh
@@ -161,7 +161,7 @@ The device will capture sensors + photo, call Claude, and email the report. Poll
 
 ### Web dashboard
 
-Open `http://192.168.4.1` in a browser connected to the device AP to see the latest reading, full history table, and a CSV export link.
+Open `http://192.168.4.1` in a browser connected to the device AP to see the latest reading and device status.
 
 ### Manual LLM run on an existing data folder
 
@@ -175,15 +175,15 @@ python3 src/llm.py data/2025-01-15_14-30-00
 python3 src/readings.py
 ```
 
-Each run appends a row to `data/readings.db` and saves its files to `data/<timestamp>/`:
+Each run overwrites `data/latest/` — only the most recent reading is kept:
 
 ```
 data/
-├── readings.db                      # SQLite — all readings, pruned to 90 days
-└── 2025-01-15_14-30-00/
-    ├── readings.txt                 # Pipe-delimited log (read by llm.py)
-    ├── 2025-01-15_14-30-00.jpg      # Pi camera photo
-    └── 2025-01-15_14-30-00.png      # Thermal heatmap
+└── latest/
+    ├── readings.txt        # Pipe-delimited sensor values
+    ├── <timestamp>.jpg     # Pi camera photo
+    ├── <timestamp>.png     # Thermal heatmap
+    └── thermal.json        # Raw 24×32 float array
 ```
 
 If the photo's Laplacian variance falls below the blur threshold (100.0), the reading is flagged `BLURRY PHOTO` in the notes field. If any individual sensor fails, the fault is recorded and the reading continues with the remaining sensors.
