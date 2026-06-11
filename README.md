@@ -40,11 +40,11 @@ thermal-comfort/
 │   ├── server.py           # Flask HTTP server: all API endpoints + web dashboard
 │   └── setup_ap.sh         # One-time script: configures hostapd + dnsmasq Wi-Fi AP
 └── data/
-    └── <timestamp>/        # One folder per run
-        ├── readings.txt            # Pipe-delimited sensor log (read by llm.py)
-        ├── <timestamp>.jpg         # Pi camera photo
-        ├── <timestamp>.png         # Thermal heatmap
-        └── <timestamp>_thermal.json  # Raw 24×32 float array (served by GET /reading/latest/thermal)
+    └── latest/             # Overwritten on every capture — only the most recent reading is kept
+        ├── readings.txt        # Pipe-delimited sensor values
+        ├── <timestamp>.jpg     # Pi camera photo
+        ├── <timestamp>.png     # Thermal heatmap
+        └── thermal.json        # Raw 24×32 float array (served by GET /reading/latest/thermal)
 ```
 
 ## Setup
