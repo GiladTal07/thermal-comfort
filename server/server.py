@@ -147,10 +147,14 @@ def post_ap_password():
 
 
 def _set_ap_password(password: str):
-    import subprocess
-    subprocess.run(['nmcli', 'con', 'modify', 'thermal-ap',
-                    'wifi-sec.psk', password], check=True)
-    subprocess.run(['nmcli', 'con', 'up', 'thermal-ap'], check=True)
+    import subprocess, re
+    conf_path = '/etc/hostapd/hostapd.conf'
+    with open(conf_path) as f:
+        conf = f.read()
+    conf = re.sub(r'^wpa_passphrase=.*$', f'wpa_passphrase={password}', conf, flags=re.MULTILINE)
+    with open(conf_path, 'w') as f:
+        f.write(conf)
+    subprocess.run(['systemctl', 'restart', 'hostapd'], check=True)
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────
