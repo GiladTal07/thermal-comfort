@@ -10,6 +10,9 @@ to-do.md
 data/readings.db
 data/*/
 
+#Upload code to/from git
+server/update.sh
+
 # Python
 __pycache__/
 *.pyc
