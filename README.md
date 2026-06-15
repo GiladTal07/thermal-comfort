@@ -29,6 +29,7 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 ```
 thermal-comfort/
 ├── src/                    # Device application code
+│   ├── main.py             # Entry point: waits for button press, triggers capture + analysis
 │   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, Pi camera; blur detection
 │   ├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
 │   ├── pmv_calculator.py   # PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
@@ -36,15 +37,11 @@ thermal-comfort/
 │   ├── llm.py              # Sends data + images to Claude; emails the analysis
 │   ├── mailer.py           # HTML email dispatch via Gmail (SMTP)
 │   └── template.html       # Email report template (professional layout with appendix sections)
-├── server/                 # HTTP server and AP setup
-│   ├── server.py           # Flask HTTP server: all API endpoints + web dashboard
-│   └── setup_ap.sh         # One-time script: configures Wi-Fi AP via nmcli (NetworkManager)
-└── data/
-    └── latest/             # Overwritten on every capture — only the most recent reading is kept
-        ├── readings.txt        # Pipe-delimited sensor values
-        ├── <timestamp>.jpg     # Pi camera photo
-        ├── <timestamp>.png     # Thermal heatmap
-        └── thermal.json        # Raw 24×32 float array (served by GET /reading/latest/thermal)
+└── data/                   # Overwritten on every capture — only the most recent reading is kept
+    ├── data.txt            # Pipe-delimited sensor values
+    ├── image.jpg           # Pi camera photo
+    ├── thermal.png         # Bicubic-upscaled thermal heatmap
+    └── thermal.json        # Raw 24×32 float array
 ```
 
 ## Setup
@@ -60,9 +57,9 @@ cd thermal-comfort
 ### 2. Install dependencies
 
 ```bash
-pip install pythermalcomfort anthropic adafruit-circuitpython-si7021 \
+pip install pythermalcomfort anthropic adafruit-blinka adafruit-circuitpython-si7021 \
             adafruit-circuitpython-mlx90640 smbus2 gpiozero \
-            matplotlib scipy numpy opencv-python markdown flask --break-system-packages
+            matplotlib scipy numpy opencv-python markdown --break-system-packages
 ```
 
 ### 3. Enable I²C
@@ -97,17 +94,7 @@ chmod 600 ~/thermal-comfort/.env
 
 For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833) rather than your account password.
 
-### 5. Configure the Wi-Fi access point
-
-Run the setup script once as root. It uses `nmcli` (NetworkManager) to create a permanent AP connection on `wlan0` with a static IP (`192.168.4.1`) and DHCP for clients. The SSID ends with the last 4 characters of the device's MAC address:
-
-```bash
-sudo bash server/setup_ap.sh
-```
-
-The default AP password is `comfort1234`. Note the printed SSID and password — these go on the device label. The password can be changed later via `POST /config/ap-password`.
-
-### 6. Set up the systemd service
+### 5. Set up the systemd service
 
 Create the service file:
 
@@ -120,18 +107,16 @@ Paste the following, replacing `your-username` with your actual username:
 ```ini
 [Unit]
 Description=Thermal Comfort Monitor
-After=network-online.target
-Wants=network-online.target
+After=multi-user.target
 
 [Service]
 Type=simple
 User=your-username
 WorkingDirectory=/home/your-username/thermal-comfort
 EnvironmentFile=/home/your-username/thermal-comfort/.env
-ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/server/server.py
+ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/src/main.py
 Restart=always
 RestartSec=1
-AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target
@@ -151,22 +136,13 @@ The service will now start automatically on every boot with no monitor needed.
 
 ### Normal operation
 
-With the service running, the device broadcasts its Wi-Fi AP and waits. Trigger a reading from the phone app (`POST /trigger`) or from the command line:
+With the service running, press the button on GPIO 17. The device will capture sensors + photo, call Claude, and email the report.
+
+### Manual run (no systemd)
 
 ```bash
-curl -X POST http://192.168.4.1/trigger
-```
-
-The device will capture sensors + photo, call Claude, and email the report. Poll `GET /status` to track progress.
-
-### Web dashboard
-
-Open `http://192.168.4.1` in a browser connected to the device AP to see the latest reading and device status.
-
-### Manual LLM run on an existing data folder
-
-```bash
-python3 src/llm.py data/2025-01-15_14-30-00
+cd ~/thermal-comfort
+python3 src/main.py
 ```
 
 ### Capture only (no LLM)
@@ -175,15 +151,14 @@ python3 src/llm.py data/2025-01-15_14-30-00
 python3 src/readings.py
 ```
 
-Each run overwrites `data/latest/` — only the most recent reading is kept:
+Each run overwrites `data/` with fixed filenames — only the most recent reading is kept:
 
 ```
 data/
-└── latest/
-    ├── readings.txt        # Pipe-delimited sensor values
-    ├── <timestamp>.jpg     # Pi camera photo
-    ├── <timestamp>.png     # Thermal heatmap
-    └── thermal.json        # Raw 24×32 float array
+├── data.txt        # Pipe-delimited sensor values
+├── image.jpg       # Pi camera photo
+├── thermal.png     # Bicubic-upscaled thermal heatmap
+└── thermal.json    # Raw 24×32 float array
 ```
 
 If the photo's Laplacian variance falls below the blur threshold (100.0), the reading is flagged `BLURRY PHOTO` in the notes field. If any individual sensor fails, the fault is recorded and the reading continues with the remaining sensors.
@@ -260,4 +235,4 @@ ISO 7730 recommends keeping PMV between **−0.5 and +0.5** (PPD < 10%).
 - [matplotlib](https://matplotlib.org/) + [scipy](https://scipy.org/) — Thermal heatmap generation
 - [opencv-python](https://pypi.org/project/opencv-python/) — Laplacian variance blur detection on camera photos
 - [markdown](https://python-markdown.github.io/) — Converts Claude's markdown output to HTML for the email report
-- [flask](https://flask.palletsprojects.com/) — Device HTTP server and web dashboard
+- [adafruit-blinka](https://github.com/adafruit/Adafruit_Blinka) — CircuitPython hardware abstraction for Raspberry Pi

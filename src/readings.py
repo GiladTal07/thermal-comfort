@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 from datetime import datetime
 from sensors import read_sensor_values, capture_photo, check_focus
 from thermal_map import save_maps
@@ -9,8 +10,14 @@ _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(_project_root, 'data')
 
 
+_DATA_FILES = ['data.txt', 'image.jpg', 'thermal.png', 'thermal.json']
+
 def capture_data(met=DEFAULT_MET, clo=DEFAULT_CLO) -> str:
     os.makedirs(DATA_DIR, exist_ok=True)
+    for f in _DATA_FILES:
+        p = Path(DATA_DIR) / f
+        if p.exists():
+            p.unlink()
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
     air_temp, humidity, mean_radiant, thermal, air_speed, sensor_faults = read_sensor_values()
