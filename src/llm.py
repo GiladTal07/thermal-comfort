@@ -2,7 +2,12 @@ import sys
 import base64
 import anthropic
 from pathlib import Path
+from gpiozero import Button
+from signal import pause
+from readings import capture_data, DATA_DIR
 from mailer import send_email
+
+BUTTON_PIN = 17
 
 SYSTEM_PROMPT = """\
 You are a certified thermal comfort specialist (ISO 7730:2005) producing occupant comfort \
@@ -69,17 +74,17 @@ def parse_readings(text: str) -> str:
 
 def run(folder_path: str) -> None:
 	folder = Path(folder_path)
-	
-	readings_file = folder / "readings.txt"
-	jpg_files = list(folder.glob("*.jpg"))
-	png_files = list(folder.glob("*.png"))
-	
+
+	readings_file = folder / "data.txt"
+	jpg_file = folder / "image.jpg"
+	png_file = folder / "thermal.png"
+
 	if not readings_file.exists():
-		sys.exit(f"Error: readings.txt not found in {folder}")
-	if not jpg_files:
-		sys.exit(f"Error: no .jpg file found in {folder}")
-	if not png_files:
-		sys.exit(f"Error: no .png file found in {folder}")
+		sys.exit(f"Error: data.txt not found in {folder}")
+	if not jpg_file.exists():
+		sys.exit(f"Error: image.jpg not found in {folder}")
+	if not png_file.exists():
+		sys.exit(f"Error: thermal.png not found in {folder}")
 	
 	client = anthropic.Anthropic()
 	
@@ -105,7 +110,7 @@ def run(folder_path: str) -> None:
 					"source": {
 						"type": "base64",
 						"media_type": "image/jpeg",
-						"data": encode_image(jpg_files[0]),
+						"data": encode_image(jpg_file),
 					},
 				},
 				{
@@ -117,7 +122,7 @@ def run(folder_path: str) -> None:
 					"source": {
 						"type": "base64",
 						"media_type": "image/png",
-						"data": encode_image(png_files[0]),
+						"data": encode_image(png_file),
 					},
 				},
 				{
@@ -132,9 +137,18 @@ def run(folder_path: str) -> None:
 			output.append(text)
 	
 	print()
-	send_email("".join(output), jpg_files[0], png_files[0])
+	send_email("".join(output), jpg_file, png_file)
 
 if __name__ == "__main__":
-	if len(sys.argv) != 2:
-		raise ValueError(f"Usage: python {sys.argv[0]} <folder_path>")
-	run(sys.argv[1])
+	def on_press():
+		print("Button pressed — starting capture...")
+		try:
+			capture_data()
+			run(DATA_DIR)
+		except Exception as e:
+			print(f"Error: {e}")
+
+	button = Button(BUTTON_PIN)
+	button.when_pressed = on_press
+	print("Ready. Waiting for button press on GPIO 17.")
+	pause()
