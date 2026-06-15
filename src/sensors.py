@@ -80,15 +80,14 @@ def check_focus(image_path):
     variance = cv2.Laplacian(img, cv2.CV_64F).var()
     return round(float(variance), 2), variance < BLUR_THRESHOLD
 
-def capture_photo(timestamp=None, output_dir=None):
+def capture_photo(filename=None, output_dir=None):
     if output_dir is None:
         output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'photos')
 
-    if timestamp is None:
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if filename is None:
+        filename = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
-    filename = timestamp.replace(' ', '_').replace(':', '-') + '.jpg'
-    filepath = os.path.join(output_dir, filename)
+    filepath = os.path.join(output_dir, f"{filename}.jpg")
 
     result = subprocess.run(
         ['libcamera-still', '-o', filepath,

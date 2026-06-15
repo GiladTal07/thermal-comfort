@@ -13,8 +13,7 @@ from flask import Flask, jsonify, request, send_file, render_template_string
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_project_root, 'src'))
 
-from readings import capture_data, LATEST_DIR
-from llm import run as run_analysis
+from readings import capture_data, DATA_DIR
 from pmv_calculator import DEFAULT_MET, DEFAULT_CLO
 
 FIRMWARE_VERSION = '1.0.0'
@@ -51,8 +50,7 @@ def _set_status(status, error_msg=None):
 def _capture_worker(met, clo):
     _set_status('capturing')
     try:
-        run_dir = capture_data(met=met, clo=clo)
-        run_analysis(run_dir)
+        capture_data(met=met, clo=clo)
         _set_status('ready')
     except Exception as e:
         _set_status('error', str(e))
@@ -65,7 +63,7 @@ _LABELS = ['timestamp', 'air_temp', 'humidity', 'mrt', 'air_speed',
 
 
 def _get_latest() -> dict | None:
-    readings_file = Path(LATEST_DIR) / 'readings.txt'
+    readings_file = Path(DATA_DIR) / 'data.txt'
     if not readings_file.exists():
         return None
     parts = [p.strip() for p in readings_file.read_text().strip().split('|')]
@@ -94,15 +92,15 @@ def get_reading_latest():
 
 @app.get('/reading/latest/photo')
 def get_latest_photo():
-    jpgs = list(Path(LATEST_DIR).glob('*.jpg'))
-    if not jpgs:
+    path = Path(DATA_DIR) / 'image.jpg'
+    if not path.exists():
         return jsonify({'error': 'no photo available'}), 404
-    return send_file(jpgs[0], mimetype='image/jpeg', conditional=True)
+    return send_file(path, mimetype='image/jpeg', conditional=True)
 
 
 @app.get('/reading/latest/thermal')
 def get_latest_thermal():
-    path = Path(LATEST_DIR) / 'thermal.json'
+    path = Path(DATA_DIR) / 'thermal.json'
     if not path.exists():
         return jsonify({'error': 'no thermal data available'}), 404
     return send_file(path, mimetype='application/json')
@@ -147,14 +145,10 @@ def post_ap_password():
 
 
 def _set_ap_password(password: str):
-    import subprocess, re
-    conf_path = '/etc/hostapd/hostapd.conf'
-    with open(conf_path) as f:
-        conf = f.read()
-    conf = re.sub(r'^wpa_passphrase=.*$', f'wpa_passphrase={password}', conf, flags=re.MULTILINE)
-    with open(conf_path, 'w') as f:
-        f.write(conf)
-    subprocess.run(['systemctl', 'restart', 'hostapd'], check=True)
+    import subprocess
+    subprocess.run(['nmcli', 'con', 'modify', 'thermal-ap',
+                    'wifi-sec.psk', password], check=True)
+    subprocess.run(['nmcli', 'con', 'up', 'thermal-ap'], check=True)
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────
