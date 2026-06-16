@@ -1,4 +1,3 @@
-import sys
 import base64
 import anthropic
 from pathlib import Path
@@ -80,11 +79,11 @@ def run(folder_path: str) -> None:
 	png_file = folder / "thermal.png"
 
 	if not readings_file.exists():
-		sys.exit(f"Error: data.txt not found in {folder}")
+		raise FileNotFoundError(f"data.txt not found in {folder}")
 	if not jpg_file.exists():
-		sys.exit(f"Error: image.jpg not found in {folder}")
+		raise FileNotFoundError(f"image.jpg not found in {folder}")
 	if not png_file.exists():
-		sys.exit(f"Error: thermal.png not found in {folder}")
+		raise FileNotFoundError(f"thermal.png not found in {folder}")
 	
 	client = anthropic.Anthropic()
 	
