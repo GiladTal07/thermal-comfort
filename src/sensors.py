@@ -48,18 +48,28 @@ def _weighted_mrt(thermal):
     weights /= weights.sum()
     return round(float(np.sum(thermal * weights)), 2)
 
+def _si7021_poll(buf):
+    for _ in range(20):
+        time.sleep(0.01)
+        try:
+            _i2c.readfrom_into(SI7021_ADDRESS, buf)
+            return
+        except OSError:
+            pass
+    raise OSError("SI7021 measurement timed out")
+
 def read_si7021():
     while not _i2c.try_lock():
         pass
     try:
         _i2c.writeto(SI7021_ADDRESS, bytes([0xFE]))  # soft reset
         time.sleep(0.05)
-        _i2c.writeto(SI7021_ADDRESS, bytes([0xE3]))  # temp, hold master
+        _i2c.writeto(SI7021_ADDRESS, bytes([0xF3]))  # temp, no-hold
         t_buf = bytearray(3)
-        _i2c.readfrom_into(SI7021_ADDRESS, t_buf)
-        _i2c.writeto(SI7021_ADDRESS, bytes([0xE5]))  # humidity, hold master
+        _si7021_poll(t_buf)
+        _i2c.writeto(SI7021_ADDRESS, bytes([0xF5]))  # humidity, no-hold
         h_buf = bytearray(3)
-        _i2c.readfrom_into(SI7021_ADDRESS, h_buf)
+        _si7021_poll(h_buf)
     finally:
         _i2c.unlock()
     raw_t = (t_buf[0] << 8) | t_buf[1]
