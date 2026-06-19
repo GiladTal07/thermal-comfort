@@ -8,6 +8,7 @@ import time
 import subprocess
 from datetime import datetime
 import smbus2
+from smbus2 import i2c_msg
 
 _mlx90640 = None
 
@@ -49,16 +50,16 @@ def _weighted_mrt(thermal):
 
 def read_si7021():
     with smbus2.SMBus(I2C_BUS) as bus:
-        bus.write_byte(SI7021_ADDRESS, 0xF3)
+        bus.i2c_rdwr(i2c_msg.write(SI7021_ADDRESS, [0xF3]))
         time.sleep(0.02)
-        msb_t = bus.read_byte(SI7021_ADDRESS)
-        lsb_t = bus.read_byte(SI7021_ADDRESS)
-        bus.write_byte(SI7021_ADDRESS, 0xF5)
+        t_msg = i2c_msg.read(SI7021_ADDRESS, 3)
+        bus.i2c_rdwr(t_msg)
+        bus.i2c_rdwr(i2c_msg.write(SI7021_ADDRESS, [0xF5]))
         time.sleep(0.05)
-        msb_h = bus.read_byte(SI7021_ADDRESS)
-        lsb_h = bus.read_byte(SI7021_ADDRESS)
-    raw_t = (msb_t << 8) | lsb_t
-    raw_h = (msb_h << 8) | lsb_h
+        h_msg = i2c_msg.read(SI7021_ADDRESS, 3)
+        bus.i2c_rdwr(h_msg)
+    raw_t = (list(t_msg)[0] << 8) | list(t_msg)[1]
+    raw_h = (list(h_msg)[0] << 8) | list(h_msg)[1]
     return round(175.72 * raw_t / 65536 - 46.85, 2), round(125 * raw_h / 65536 - 6, 2)
 
 def init_sensors():
