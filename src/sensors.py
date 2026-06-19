@@ -51,10 +51,15 @@ def _weighted_mrt(thermal):
 def init_sensors():
     global _si7021, _mlx90640
     if _si7021 is None or _mlx90640 is None:
+        print("Opening I2C bus...")
         i2c = busio.I2C(board.SCL, board.SDA)
+        print("I2C bus open. Initialising SI7021...")
         _si7021 = adafruit_si7021.SI7021(i2c)
+        print("SI7021 done. Initialising MLX90640...")
         _mlx90640 = adafruit_mlx90640.MLX90640(i2c)
+        print("MLX90640 done. Setting refresh rate...")
         _mlx90640.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_2_HZ
+        print("Refresh rate set.")
 
 def read_sensor_values():
     sensor_faults = []
