@@ -5,6 +5,7 @@ import adafruit_si7021
 import adafruit_mlx90640
 import cv2
 import os
+import time
 import subprocess
 from datetime import datetime
 import smbus2
@@ -13,8 +14,24 @@ _si7021 = None
 _mlx90640 = None
 
 PAV3015_ADDRESS = 0x28
+BMM150_ADDRESS = 0x13
 I2C_BUS = 1
 BLUR_THRESHOLD = 100.0
+
+def read_bmm150():
+    with smbus2.SMBus(I2C_BUS) as bus:
+        bus.write_byte_data(BMM150_ADDRESS, 0x4B, 0x01)  # power on
+        time.sleep(0.003)
+        bus.write_byte_data(BMM150_ADDRESS, 0x4C, 0x02)  # forced mode
+        time.sleep(0.02)
+        data = bus.read_i2c_block_data(BMM150_ADDRESS, 0x42, 6)
+    x = ((data[1] << 5) | (data[0] >> 3))
+    if x > 4095: x -= 8192
+    y = ((data[3] << 5) | (data[2] >> 3))
+    if y > 4095: y -= 8192
+    z = ((data[5] << 7) | (data[4] >> 1))
+    if z > 16383: z -= 32768
+    return round(x * 0.3, 2), round(y * 0.3, 2), round(z * 0.3, 2)
 
 def read_air_speed():
     with smbus2.SMBus(I2C_BUS) as bus:
@@ -71,7 +88,13 @@ def read_sensor_values():
     except Exception as e:
         sensor_faults.append(f"PAV3015: {e}")
 
-    return air_temp, humidity, mrt, thermal, air_speed, sensor_faults
+    mag = None
+    try:
+        mag = read_bmm150()
+    except Exception as e:
+        sensor_faults.append(f"BMM150: {e}")
+
+    return air_temp, humidity, mrt, thermal, air_speed, mag, sensor_faults
 
 def check_focus(image_path):
     img = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
@@ -92,7 +115,8 @@ def capture_photo(filename=None, output_dir=None):
     result = subprocess.run(
         ['libcamera-still', '-o', filepath,
          '--width', '1920', '--height', '1080',
-         '--nopreview', '-t', '1'],
+         '--nopreview', '-t', '1',
+         '--hflip', '--vflip'],
         capture_output=True, text=True
     )
 

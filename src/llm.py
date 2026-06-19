@@ -62,6 +62,9 @@ def parse_readings(text: str) -> str:
 		"PMV",
 		"PPD (%)",
 		"TSV",
+		"Magnetic Field X (µT)",
+		"Magnetic Field Y (µT)",
+		"Magnetic Field Z (µT)",
 		"Notes",
 	]
 	parts = [p.strip() for p in text.strip().split("|")]
