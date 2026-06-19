@@ -59,8 +59,10 @@ def init_sensors():
 def read_sensor_values():
     sensor_faults = []
 
+    print("Initialising I2C...")
     try:
         init_sensors()
+        print("I2C init done.")
     except Exception as e:
         return None, None, None, None, None, None, [f"I2C init failed: {e}"]
 
