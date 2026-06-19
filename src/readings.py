@@ -20,16 +20,21 @@ def capture_data(met=DEFAULT_MET, clo=DEFAULT_CLO) -> str:
             p.unlink()
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
+    print("Reading sensors...")
     air_temp, humidity, mean_radiant, thermal, air_speed, mag, sensor_faults = read_sensor_values()
+    print(f"Sensors done. air_temp={air_temp} humidity={humidity} mrt={mean_radiant} air_speed={air_speed} mag={mag}")
     if sensor_faults:
         print(f"Sensor faults: {'; '.join(sensor_faults)}")
 
+    print("Capturing photo...")
     photo_path = capture_photo('image', output_dir=DATA_DIR)
+    print(f"Photo done: {photo_path}")
     sharpness, blurry = check_focus(photo_path) if photo_path else (None, False)
     if blurry:
         print(f"Warning: photo flagged as blurry (sharpness={sharpness})")
 
     if thermal is not None:
+        print("Saving thermal map...")
         save_maps(thermal, filename='thermal', output_dir=DATA_DIR)
         with open(os.path.join(DATA_DIR, 'thermal.json'), 'w') as f:
             json.dump(thermal.tolist(), f)

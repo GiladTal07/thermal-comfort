@@ -62,7 +62,7 @@ def read_sensor_values():
     try:
         init_sensors()
     except Exception as e:
-        return None, None, None, None, None, [f"I2C init failed: {e}"]
+        return None, None, None, None, None, None, [f"I2C init failed: {e}"]
 
     thermal = None
     mrt = None
