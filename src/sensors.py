@@ -8,9 +8,9 @@ import time
 import subprocess
 from datetime import datetime
 import smbus2
-from smbus2 import i2c_msg
 
 _mlx90640 = None
+_i2c = None
 
 SI7021_ADDRESS = 0x40
 PAV3015_ADDRESS = 0x28
@@ -49,26 +49,30 @@ def _weighted_mrt(thermal):
     return round(float(np.sum(thermal * weights)), 2)
 
 def read_si7021():
-    with smbus2.SMBus(I2C_BUS) as bus:
-        bus.write_byte(SI7021_ADDRESS, 0xFE)  # soft reset
+    while not _i2c.try_lock():
+        pass
+    try:
+        _i2c.writeto(SI7021_ADDRESS, bytes([0xFE]))  # soft reset
         time.sleep(0.05)
-        bus.i2c_rdwr(i2c_msg.write(SI7021_ADDRESS, [0xE3]))  # temp, hold master
-        t_msg = i2c_msg.read(SI7021_ADDRESS, 3)
-        bus.i2c_rdwr(t_msg)
-        bus.i2c_rdwr(i2c_msg.write(SI7021_ADDRESS, [0xE5]))  # humidity, hold master
-        h_msg = i2c_msg.read(SI7021_ADDRESS, 3)
-        bus.i2c_rdwr(h_msg)
-    raw_t = (list(t_msg)[0] << 8) | list(t_msg)[1]
-    raw_h = (list(h_msg)[0] << 8) | list(h_msg)[1]
+        _i2c.writeto(SI7021_ADDRESS, bytes([0xE3]))  # temp, hold master
+        t_buf = bytearray(3)
+        _i2c.readfrom_into(SI7021_ADDRESS, t_buf)
+        _i2c.writeto(SI7021_ADDRESS, bytes([0xE5]))  # humidity, hold master
+        h_buf = bytearray(3)
+        _i2c.readfrom_into(SI7021_ADDRESS, h_buf)
+    finally:
+        _i2c.unlock()
+    raw_t = (t_buf[0] << 8) | t_buf[1]
+    raw_h = (h_buf[0] << 8) | h_buf[1]
     return round(175.72 * raw_t / 65536 - 46.85, 2), round(125 * raw_h / 65536 - 6, 2)
 
 def init_sensors():
-    global _mlx90640
+    global _mlx90640, _i2c
     if _mlx90640 is None:
         print("Opening I2C bus...")
-        i2c = busio.I2C(board.SCL, board.SDA)
+        _i2c = busio.I2C(board.SCL, board.SDA)
         print("I2C bus open. Initialising MLX90640...")
-        _mlx90640 = adafruit_mlx90640.MLX90640(i2c)
+        _mlx90640 = adafruit_mlx90640.MLX90640(_i2c)
         print("MLX90640 done. Setting refresh rate...")
         _mlx90640.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_2_HZ
         print("Refresh rate set.")
