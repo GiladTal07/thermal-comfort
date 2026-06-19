@@ -1,7 +1,6 @@
 import board
 import busio
 import numpy as np
-import adafruit_si7021
 import adafruit_mlx90640
 import cv2
 import os
@@ -10,9 +9,9 @@ import subprocess
 from datetime import datetime
 import smbus2
 
-_si7021 = None
 _mlx90640 = None
 
+SI7021_ADDRESS = 0x40
 PAV3015_ADDRESS = 0x28
 BMM150_ADDRESS = 0x13
 I2C_BUS = 1
@@ -48,14 +47,26 @@ def _weighted_mrt(thermal):
     weights /= weights.sum()
     return round(float(np.sum(thermal * weights)), 2)
 
+def read_si7021():
+    with smbus2.SMBus(I2C_BUS) as bus:
+        bus.write_byte(SI7021_ADDRESS, 0xF3)
+        time.sleep(0.02)
+        msb_t = bus.read_byte(SI7021_ADDRESS)
+        lsb_t = bus.read_byte(SI7021_ADDRESS)
+        bus.write_byte(SI7021_ADDRESS, 0xF5)
+        time.sleep(0.05)
+        msb_h = bus.read_byte(SI7021_ADDRESS)
+        lsb_h = bus.read_byte(SI7021_ADDRESS)
+    raw_t = (msb_t << 8) | lsb_t
+    raw_h = (msb_h << 8) | lsb_h
+    return round(175.72 * raw_t / 65536 - 46.85, 2), round(125 * raw_h / 65536 - 6, 2)
+
 def init_sensors():
-    global _si7021, _mlx90640
-    if _si7021 is None or _mlx90640 is None:
+    global _mlx90640
+    if _mlx90640 is None:
         print("Opening I2C bus...")
         i2c = busio.I2C(board.SCL, board.SDA)
-        print("I2C bus open. Initialising SI7021...")
-        _si7021 = adafruit_si7021.SI7021(i2c)
-        print("SI7021 done. Initialising MLX90640...")
+        print("I2C bus open. Initialising MLX90640...")
         _mlx90640 = adafruit_mlx90640.MLX90640(i2c)
         print("MLX90640 done. Setting refresh rate...")
         _mlx90640.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_2_HZ
@@ -88,8 +99,7 @@ def read_sensor_values():
     humidity = None
     print("Reading SI7021...")
     try:
-        air_temp = round(_si7021.temperature, 2)
-        humidity = round(_si7021.relative_humidity, 2)
+        air_temp, humidity = read_si7021()
         print(f"SI7021 done. temp={air_temp} humidity={humidity}")
     except Exception as e:
         sensor_faults.append(f"SI7021: {e}")
