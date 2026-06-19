@@ -50,12 +50,12 @@ def _weighted_mrt(thermal):
 
 def read_si7021():
     with smbus2.SMBus(I2C_BUS) as bus:
-        bus.i2c_rdwr(i2c_msg.write(SI7021_ADDRESS, [0xF3]))
-        time.sleep(0.02)
+        bus.write_byte(SI7021_ADDRESS, 0xFE)  # soft reset
+        time.sleep(0.05)
+        bus.i2c_rdwr(i2c_msg.write(SI7021_ADDRESS, [0xE3]))  # temp, hold master
         t_msg = i2c_msg.read(SI7021_ADDRESS, 3)
         bus.i2c_rdwr(t_msg)
-        bus.i2c_rdwr(i2c_msg.write(SI7021_ADDRESS, [0xF5]))
-        time.sleep(0.05)
+        bus.i2c_rdwr(i2c_msg.write(SI7021_ADDRESS, [0xE5]))  # humidity, hold master
         h_msg = i2c_msg.read(SI7021_ADDRESS, 3)
         bus.i2c_rdwr(h_msg)
     raw_t = (list(t_msg)[0] << 8) | list(t_msg)[1]
