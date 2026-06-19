@@ -21,6 +21,7 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 | SI7021 | Air temperature and relative humidity |
 | MLX90640 (32×24 IR array) | Mean radiant temperature + thermal heatmap |
 | PAV3015 (I²C, address `0x28`) | Air speed (m/s) |
+| BMM150 (I²C, address `0x13`) | 3-axis magnetic field (µT) |
 | Pi Camera (libcamera) | High-resolution photo of the space |
 | Pushbutton on GPIO 17 | Trigger a reading |
 
@@ -29,12 +30,11 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 ```
 thermal-comfort/
 ├── src/                    # Device application code
-│   ├── main.py             # Entry point: waits for button press, triggers capture + analysis
-│   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, Pi camera; blur detection
+│   ├── llm.py              # Entry point: button trigger, Claude analysis, email dispatch
+│   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, BMM150, Pi camera; blur detection
 │   ├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
 │   ├── pmv_calculator.py   # PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
 │   ├── readings.py         # Orchestrates a full capture: sensors → photo → heatmap → PMV → log
-│   ├── llm.py              # Sends data + images to Claude; emails the analysis
 │   ├── mailer.py           # HTML email dispatch via Gmail (SMTP)
 │   └── template.html       # Email report template (professional layout with appendix sections)
 └── data/                   # Overwritten on every capture — only the most recent reading is kept
@@ -57,7 +57,7 @@ cd thermal-comfort
 ### 2. Install dependencies
 
 ```bash
-pip install pythermalcomfort anthropic adafruit-blinka adafruit-circuitpython-si7021 \
+pip install pythermalcomfort anthropic adafruit-blinka \
             adafruit-circuitpython-mlx90640 smbus2 gpiozero \
             matplotlib scipy numpy opencv-python markdown --break-system-packages
 ```
@@ -114,7 +114,7 @@ Type=simple
 User=your-username
 WorkingDirectory=/home/your-username/thermal-comfort
 EnvironmentFile=/home/your-username/thermal-comfort/.env
-ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/src/main.py
+ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/src/llm.py
 Restart=always
 RestartSec=1
 
@@ -142,7 +142,7 @@ With the service running, press the button on GPIO 17. The device will capture s
 
 ```bash
 cd ~/thermal-comfort
-python3 src/main.py
+python3 src/llm.py
 ```
 
 ### Capture only (no LLM)
@@ -193,7 +193,7 @@ Air speed from the sensor is automatically converted to relative air speed using
 
 The Claude API (`claude-haiku-4-5`) receives:
 
-- Labeled sensor readings (timestamp, air temp, humidity, MRT, air speed, PMV, PPD, TSV, notes)
+- Labeled sensor readings (timestamp, air temp, humidity, MRT, air speed, PMV, PPD, TSV, magnetic field X/Y/Z, notes)
 - HQ JPEG photo of the space
 - Bicubic-upscaled inferno thermal heatmap (brighter = warmer)
 
@@ -228,9 +228,8 @@ ISO 7730 recommends keeping PMV between **−0.5 and +0.5** (PPD < 10%).
 
 - [pythermalcomfort](https://pythermalcomfort.readthedocs.io/) — ISO 7730:2005 thermal comfort calculations
 - [anthropic](https://docs.anthropic.com/) — Claude API client
-- [adafruit-circuitpython-si7021](https://github.com/adafruit/Adafruit_CircuitPython_SI7021) — SI7021 temperature/humidity sensor
 - [adafruit-circuitpython-mlx90640](https://github.com/adafruit/Adafruit_CircuitPython_MLX90640) — MLX90640 IR array
-- [smbus2](https://pypi.org/project/smbus2/) — I²C communication for PAV3015 air speed sensor
+- [smbus2](https://pypi.org/project/smbus2/) — Direct I²C communication for SI7021, PAV3015, and BMM150
 - [gpiozero](https://gpiozero.readthedocs.io/) — GPIO button input
 - [matplotlib](https://matplotlib.org/) + [scipy](https://scipy.org/) — Thermal heatmap generation
 - [opencv-python](https://pypi.org/project/opencv-python/) — Laplacian variance blur detection on camera photos
