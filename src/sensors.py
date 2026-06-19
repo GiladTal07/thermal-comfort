@@ -66,33 +66,45 @@ def read_sensor_values():
 
     thermal = None
     mrt = None
+    print("Reading MLX90640...")
     try:
         frame = [0] * 768
         _mlx90640.getFrame(frame)
         thermal = np.array(frame).reshape(24, 32)
         mrt = _weighted_mrt(thermal)
+        print(f"MLX90640 done. mrt={mrt}")
     except Exception as e:
         sensor_faults.append(f"MLX90640: {e}")
+        print(f"MLX90640 error: {e}")
 
     air_temp = None
     humidity = None
+    print("Reading SI7021...")
     try:
         air_temp = round(_si7021.temperature, 2)
         humidity = round(_si7021.relative_humidity, 2)
+        print(f"SI7021 done. temp={air_temp} humidity={humidity}")
     except Exception as e:
         sensor_faults.append(f"SI7021: {e}")
+        print(f"SI7021 error: {e}")
 
     air_speed = None
+    print("Reading PAV3015...")
     try:
         air_speed = read_air_speed()
+        print(f"PAV3015 done. air_speed={air_speed}")
     except Exception as e:
         sensor_faults.append(f"PAV3015: {e}")
+        print(f"PAV3015 error: {e}")
 
     mag = None
+    print("Reading BMM150...")
     try:
         mag = read_bmm150()
+        print(f"BMM150 done. mag={mag}")
     except Exception as e:
         sensor_faults.append(f"BMM150: {e}")
+        print(f"BMM150 error: {e}")
 
     return air_temp, humidity, mrt, thermal, air_speed, mag, sensor_faults
 
