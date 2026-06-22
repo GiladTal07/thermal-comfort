@@ -14,24 +14,8 @@ _i2c = None
 
 SI7021_ADDRESS = 0x40
 PAV3015_ADDRESS = 0x28
-BMM150_ADDRESS = 0x13
 I2C_BUS = 1
 BLUR_THRESHOLD = 100.0
-
-def read_bmm150():
-    with smbus2.SMBus(I2C_BUS) as bus:
-        bus.write_byte_data(BMM150_ADDRESS, 0x4B, 0x01)  # power on
-        time.sleep(0.003)
-        bus.write_byte_data(BMM150_ADDRESS, 0x4C, 0x02)  # forced mode
-        time.sleep(0.02)
-        data = bus.read_i2c_block_data(BMM150_ADDRESS, 0x42, 6)
-    x = ((data[1] << 5) | (data[0] >> 3))
-    if x > 4095: x -= 8192
-    y = ((data[3] << 5) | (data[2] >> 3))
-    if y > 4095: y -= 8192
-    z = ((data[5] << 7) | (data[4] >> 1))
-    if z > 16383: z -= 32768
-    return round(x * 0.3, 2), round(y * 0.3, 2), round(z * 0.3, 2)
 
 def read_air_speed():
     with smbus2.SMBus(I2C_BUS) as bus:
@@ -95,7 +79,7 @@ def read_sensor_values():
         init_sensors()
         print("I2C init done.")
     except Exception as e:
-        return None, None, None, None, None, None, [f"I2C init failed: {e}"]
+        return None, None, None, None, None, [f"I2C init failed: {e}"]
 
     thermal = None
     mrt = None
@@ -129,16 +113,7 @@ def read_sensor_values():
         sensor_faults.append(f"PAV3015: {e}")
         print(f"PAV3015 error: {e}")
 
-    mag = None
-    print("Reading BMM150...")
-    try:
-        mag = read_bmm150()
-        print(f"BMM150 done. mag={mag}")
-    except Exception as e:
-        sensor_faults.append(f"BMM150: {e}")
-        print(f"BMM150 error: {e}")
-
-    return air_temp, humidity, mrt, thermal, air_speed, mag, sensor_faults
+    return air_temp, humidity, mrt, thermal, air_speed, sensor_faults
 
 def check_focus(image_path):
     img = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)

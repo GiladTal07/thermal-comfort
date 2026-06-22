@@ -1,10 +1,11 @@
 import base64
 import anthropic
 from pathlib import Path
+from threading import Thread
 from gpiozero import Button
-from signal import pause
 from readings import capture_data, DATA_DIR
 from mailer import send_email
+import tkinter as tk
 
 BUTTON_PIN = 17
 
@@ -62,9 +63,6 @@ def parse_readings(text: str) -> str:
 		"PMV",
 		"PPD (%)",
 		"TSV",
-		"Magnetic Field X (µT)",
-		"Magnetic Field Y (µT)",
-		"Magnetic Field Z (µT)",
 		"Notes",
 	]
 	parts = [p.strip() for p in text.strip().split("|")]
@@ -142,15 +140,64 @@ def run(folder_path: str) -> None:
 	send_email("".join(output), jpg_file, png_file)
 
 if __name__ == "__main__":
-	def on_press():
-		print("Button pressed — starting capture...")
-		try:
-			capture_data()
-			run(DATA_DIR)
-		except Exception as e:
-			print(f"Error: {e}")
+	_running = False
 
-	button = Button(BUTTON_PIN)
-	button.when_pressed = on_press
-	print("Ready. Waiting for button press on GPIO 17.")
-	pause()
+	def trigger():
+		global _running
+		if _running:
+			return
+		_running = True
+		btn.config(state="disabled", bg="#555", text="Processing...")
+		status.config(text="Capturing sensors and generating report...")
+
+		def work():
+			global _running
+			try:
+				capture_data()
+				run(DATA_DIR)
+				root.after(0, lambda: status.config(text="Done — check your email."))
+			except Exception as e:
+				print(f"Error: {e}")
+				root.after(0, lambda: status.config(text=f"Error: {e}"))
+			finally:
+				_running = False
+				root.after(0, lambda: btn.config(
+					state="normal", bg="#2196F3", text="START CAPTURE"
+				))
+
+		Thread(target=work, daemon=True).start()
+
+	root = tk.Tk()
+	root.title("Thermal Comfort")
+	root.attributes("-fullscreen", True)
+	root.configure(bg="#111")
+
+	btn = tk.Button(
+		root,
+		text="START CAPTURE",
+		font=("Arial", 36, "bold"),
+		bg="#2196F3",
+		fg="white",
+		activebackground="#1565C0",
+		activeforeground="white",
+		relief="flat",
+		bd=0,
+		command=trigger,
+	)
+	btn.place(relx=0.5, rely=0.45, relwidth=0.8, relheight=0.4, anchor="center")
+
+	status = tk.Label(
+		root,
+		text="Ready",
+		font=("Arial", 16),
+		bg="#111",
+		fg="#aaa",
+	)
+	status.place(relx=0.5, rely=0.8, anchor="center")
+
+	physical = Button(BUTTON_PIN)
+	physical.when_pressed = lambda: root.after(0, trigger)
+
+	root.bind("<Escape>", lambda e: root.destroy())
+
+	root.mainloop()
