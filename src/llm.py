@@ -169,7 +169,9 @@ if __name__ == "__main__":
 
 	root = tk.Tk()
 	root.title("Thermal Comfort")
-	root.attributes("-fullscreen", True)
+	root.geometry("1024x768+1920+0")
+	root.resizable(False, False)
+	root.overrideredirect(True)
 	root.configure(bg="#111")
 
 	btn = tk.Button(
