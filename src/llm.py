@@ -1,4 +1,5 @@
 import base64
+import subprocess
 import anthropic
 from pathlib import Path
 from threading import Thread
@@ -141,6 +142,24 @@ def run(folder_path: str) -> None:
 
 if __name__ == "__main__":
 	_running = False
+	_preview_proc = None
+
+	def start_preview():
+		global _preview_proc
+		_preview_proc = subprocess.Popen(
+			['libcamera-hello', '--timeout', '0',
+			 '--preview', '1920,0,1024,768',
+			 '--hflip', '--vflip'],
+			stdout=subprocess.DEVNULL,
+			stderr=subprocess.DEVNULL,
+		)
+
+	def stop_preview():
+		global _preview_proc
+		if _preview_proc and _preview_proc.poll() is None:
+			_preview_proc.terminate()
+			_preview_proc.wait()
+		_preview_proc = None
 
 	def trigger():
 		global _running
@@ -153,6 +172,7 @@ if __name__ == "__main__":
 		def work():
 			global _running
 			try:
+				stop_preview()
 				capture_data()
 				run(DATA_DIR)
 				root.after(0, lambda: status.config(text="Done — check your email."))
@@ -161,6 +181,7 @@ if __name__ == "__main__":
 				root.after(0, lambda: status.config(text=f"Error: {e}"))
 			finally:
 				_running = False
+				start_preview()
 				root.after(0, lambda: btn.config(
 					state="normal", bg="#2196F3", text="START CAPTURE"
 				))
@@ -169,7 +190,7 @@ if __name__ == "__main__":
 
 	root = tk.Tk()
 	root.title("Thermal Comfort")
-	root.geometry("1024x768+1920+0")
+	root.geometry("1920x1080+0+0")
 	root.resizable(False, False)
 	root.overrideredirect(True)
 	root.configure(bg="#111")
@@ -202,4 +223,6 @@ if __name__ == "__main__":
 
 	root.bind("<Escape>", lambda e: root.destroy())
 
+	start_preview()
 	root.mainloop()
+	stop_preview()
