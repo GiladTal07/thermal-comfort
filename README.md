@@ -21,9 +21,9 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 | SI7021 | Air temperature and relative humidity |
 | MLX90640 (32×24 IR array) | Mean radiant temperature + thermal heatmap |
 | PAV3015 (I²C, address `0x28`) | Air speed (m/s) |
-| BMM150 (I²C, address `0x13`) | 3-axis magnetic field (µT) |
 | Pi Camera (libcamera) | High-resolution photo of the space |
-| Pushbutton on GPIO 17 | Trigger a reading |
+| OSOYOO 3.5" HDMI touchscreen | On-screen trigger button |
+| Pushbutton on GPIO 17 | Physical trigger (optional) |
 
 ## Project Structure
 
@@ -31,7 +31,7 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 thermal-comfort/
 ├── src/                    # Device application code
 │   ├── llm.py              # Entry point: button trigger, Claude analysis, email dispatch
-│   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, BMM150, Pi camera; blur detection
+│   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, Pi camera
 │   ├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
 │   ├── pmv_calculator.py   # PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
 │   ├── readings.py         # Orchestrates a full capture: sensors → photo → heatmap → PMV → log
@@ -57,9 +57,10 @@ cd thermal-comfort
 ### 2. Install dependencies
 
 ```bash
+sudo apt install -y python3-picamera2
 pip install pythermalcomfort anthropic adafruit-blinka \
             adafruit-circuitpython-mlx90640 smbus2 gpiozero \
-            matplotlib scipy numpy opencv-python markdown --break-system-packages
+            matplotlib scipy numpy==1.26.4 evdev Pillow markdown --break-system-packages
 ```
 
 ### 3. Enable I²C
@@ -107,19 +108,21 @@ Paste the following, replacing `your-username` with your actual username:
 ```ini
 [Unit]
 Description=Thermal Comfort Monitor
-After=multi-user.target
+After=graphical.target
 
 [Service]
 Type=simple
 User=your-username
 WorkingDirectory=/home/your-username/thermal-comfort
 EnvironmentFile=/home/your-username/thermal-comfort/.env
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/your-username/.Xauthority
 ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/src/llm.py
 Restart=always
 RestartSec=1
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target
 ```
 
 Enable and start it:
@@ -161,7 +164,7 @@ data/
 └── thermal.json    # Raw 24×32 float array
 ```
 
-If the photo's Laplacian variance falls below the blur threshold (100.0), the reading is flagged `BLURRY PHOTO` in the notes field. If any individual sensor fails, the fault is recorded and the reading continues with the remaining sensors.
+If any individual sensor fails, the fault is recorded and the reading continues with the remaining sensors.
 
 ### Monitoring (over SSH)
 
@@ -193,7 +196,7 @@ Air speed from the sensor is automatically converted to relative air speed using
 
 The Claude API (`claude-haiku-4-5`) receives:
 
-- Labeled sensor readings (timestamp, air temp, humidity, MRT, air speed, PMV, PPD, TSV, magnetic field X/Y/Z, notes)
+- Labeled sensor readings (timestamp, air temp, humidity, MRT, air speed, PMV, PPD, TSV, notes)
 - HQ JPEG photo of the space
 - Bicubic-upscaled inferno thermal heatmap (brighter = warmer)
 
@@ -229,9 +232,11 @@ ISO 7730 recommends keeping PMV between **−0.5 and +0.5** (PPD < 10%).
 - [pythermalcomfort](https://pythermalcomfort.readthedocs.io/) — ISO 7730:2005 thermal comfort calculations
 - [anthropic](https://docs.anthropic.com/) — Claude API client
 - [adafruit-circuitpython-mlx90640](https://github.com/adafruit/Adafruit_CircuitPython_MLX90640) — MLX90640 IR array
-- [smbus2](https://pypi.org/project/smbus2/) — Direct I²C communication for SI7021, PAV3015, and BMM150
+- [smbus2](https://pypi.org/project/smbus2/) — Direct I²C communication for PAV3015 air speed sensor
 - [gpiozero](https://gpiozero.readthedocs.io/) — GPIO button input
 - [matplotlib](https://matplotlib.org/) + [scipy](https://scipy.org/) — Thermal heatmap generation
-- [opencv-python](https://pypi.org/project/opencv-python/) — Laplacian variance blur detection on camera photos
+- [picamera2](https://github.com/raspberrypi/picamera2) — Live camera preview embedded in the touchscreen UI
+- [Pillow](https://python-pillow.org/) — Image conversion for the tkinter preview feed
+- [evdev](https://python-evdev.readthedocs.io/) — Raw touch event input for the OSOYOO touchscreen
 - [markdown](https://python-markdown.github.io/) — Converts Claude's markdown output to HTML for the email report
 - [adafruit-blinka](https://github.com/adafruit/Adafruit_Blinka) — CircuitPython hardware abstraction for Raspberry Pi
