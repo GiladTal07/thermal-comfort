@@ -3,10 +3,10 @@ import subprocess
 import anthropic
 from pathlib import Path
 from threading import Thread
+from signal import pause
 from gpiozero import Button
 from readings import capture_data, DATA_DIR
 from mailer import send_email
-import tkinter as tk
 
 BUTTON_PIN = 17
 
@@ -142,87 +142,39 @@ def run(folder_path: str) -> None:
 
 if __name__ == "__main__":
 	_running = False
-	_preview_proc = None
+	_preview = subprocess.Popen(
+		['libcamera-hello', '--timeout', '0',
+		 '--preview', '1920,0,1024,768',
+		 '--hflip', '--vflip'],
+		stdout=subprocess.DEVNULL,
+		stderr=subprocess.DEVNULL,
+	)
 
-	def start_preview():
-		global _preview_proc
-		_preview_proc = subprocess.Popen(
-			['libcamera-hello', '--timeout', '0',
-			 '--preview', '1920,0,1024,768',
-			 '--hflip', '--vflip'],
-			stdout=subprocess.DEVNULL,
-			stderr=subprocess.DEVNULL,
-		)
-
-	def stop_preview():
-		global _preview_proc
-		if _preview_proc and _preview_proc.poll() is None:
-			_preview_proc.terminate()
-			_preview_proc.wait()
-		_preview_proc = None
-
-	def trigger():
-		global _running
+	def on_press():
+		global _running, _preview
 		if _running:
 			return
 		_running = True
-		btn.config(state="disabled", bg="#555", text="Processing...")
-		status.config(text="Capturing sensors and generating report...")
+		print("Button pressed — starting capture...")
+		try:
+			_preview.terminate()
+			_preview.wait()
+			capture_data()
+			run(DATA_DIR)
+		except Exception as e:
+			print(f"Error: {e}")
+		finally:
+			_running = False
+			_preview = subprocess.Popen(
+				['libcamera-hello', '--timeout', '0',
+				 '--preview', '1920,0,1024,768',
+				 '--hflip', '--vflip'],
+				stdout=subprocess.DEVNULL,
+				stderr=subprocess.DEVNULL,
+			)
 
-		def work():
-			global _running
-			try:
-				stop_preview()
-				capture_data()
-				run(DATA_DIR)
-				root.after(0, lambda: status.config(text="Done — check your email."))
-			except Exception as e:
-				print(f"Error: {e}")
-				root.after(0, lambda: status.config(text=f"Error: {e}"))
-			finally:
-				_running = False
-				start_preview()
-				root.after(0, lambda: btn.config(
-					state="normal", bg="#2196F3", text="START CAPTURE"
-				))
-
-		Thread(target=work, daemon=True).start()
-
-	root = tk.Tk()
-	root.title("Thermal Comfort")
-	root.geometry("1920x1080+0+0")
-	root.resizable(False, False)
-	root.overrideredirect(True)
-	root.configure(bg="#111")
-
-	btn = tk.Button(
-		root,
-		text="START CAPTURE",
-		font=("Arial", 36, "bold"),
-		bg="#2196F3",
-		fg="white",
-		activebackground="#1565C0",
-		activeforeground="white",
-		relief="flat",
-		bd=0,
-		command=trigger,
-	)
-	btn.place(relx=0.5, rely=0.45, relwidth=0.8, relheight=0.4, anchor="center")
-
-	status = tk.Label(
-		root,
-		text="Ready",
-		font=("Arial", 16),
-		bg="#111",
-		fg="#aaa",
-	)
-	status.place(relx=0.5, rely=0.8, anchor="center")
-
-	physical = Button(BUTTON_PIN)
-	physical.when_pressed = lambda: root.after(0, trigger)
-
-	root.bind("<Escape>", lambda e: root.destroy())
-
-	start_preview()
-	root.mainloop()
-	stop_preview()
+	button = Button(BUTTON_PIN)
+	button.when_pressed = on_press
+	print("Ready. Waiting for button press on GPIO 17.")
+	pause()
+	_preview.terminate()
