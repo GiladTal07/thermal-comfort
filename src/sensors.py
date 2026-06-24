@@ -4,6 +4,7 @@ import numpy as np
 import adafruit_mlx90640
 import os
 import time
+import math
 import subprocess
 from datetime import datetime
 import smbus2
@@ -13,7 +14,9 @@ _i2c = None
 
 SI7021_ADDRESS = 0x40
 PAV3015_ADDRESS = 0x28
+BMM150_ADDRESS = 0x13
 I2C_BUS = 1
+BMM150_I2C_BUS = 3
 
 def read_air_speed():
     with smbus2.SMBus(I2C_BUS) as bus:
@@ -138,6 +141,27 @@ def capture_photo(filename=None, output_dir=None):
         print(f"Camera error: {result.stderr}")
         return None
 
+def read_bmm150():
+    with smbus2.SMBus(BMM150_I2C_BUS) as bus:
+        bus.write_byte_data(BMM150_ADDRESS, 0x4B, 0x01)  # power on
+        time.sleep(0.003)
+        bus.write_byte_data(BMM150_ADDRESS, 0x4C, 0x00)  # normal mode
+        time.sleep(0.02)
+        data = bus.read_i2c_block_data(BMM150_ADDRESS, 0x42, 6)
+    raw_x = (data[1] << 5) | (data[0] >> 3)
+    if raw_x & 0x1000:
+        raw_x -= 0x2000
+    raw_y = (data[3] << 5) | (data[2] >> 3)
+    if raw_y & 0x1000:
+        raw_y -= 0x2000
+    deg = math.degrees(math.atan2(-raw_y, raw_x))
+    return round((deg + 360) % 360, 1)
+
 if __name__ == '__main__':
     print(read_sensor_values())
+    try:
+        heading = read_bmm150()
+        print(f"BMM150 heading: {heading}°")
+    except Exception as e:
+        print(f"BMM150 error: {e}")
     capture_photo()

@@ -231,10 +231,11 @@ if __name__ == "__main__":
 		return None
 
 	def _touch_thread():
-		dev = _find_touch_device()
-		if dev is None:
-			print("No evdev touch device found")
-			return
+		dev = None
+		while dev is None:
+			dev = _find_touch_device()
+			if dev is None:
+				time.sleep(2)
 		print(f"Touch device: {dev.name}")
 		for event in dev.read_loop():
 			if event.type == ecodes.EV_KEY and event.code == ecodes.BTN_TOUCH and event.value == 1:
