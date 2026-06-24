@@ -142,39 +142,67 @@ def run(folder_path: str) -> None:
 
 if __name__ == "__main__":
 	_running = False
-	_preview = subprocess.Popen(
-		['libcamera-hello', '--timeout', '0',
-		 '--preview', '1920,0,1024,768',
-		 '--hflip', '--vflip'],
-		stdout=subprocess.DEVNULL,
-		stderr=subprocess.DEVNULL,
-	)
+	_PREVIEW_CMD = [
+		'libcamera-hello', '--timeout', '0',
+		'--preview', '1920,0,1024,768',
+		'--hflip', '--vflip',
+	]
+	_preview = subprocess.Popen(_PREVIEW_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-	def on_press():
+	# Button overlay — bottom centre of the small screen (1024×768 at +1920+0)
+	BTN_W, BTN_H = 600, 100
+	BTN_X = 1920 + (1024 - BTN_W) // 2
+	BTN_Y = 768 - BTN_H - 15
+
+	root = tk.Tk()
+	root.overrideredirect(True)
+	root.geometry(f"{BTN_W}x{BTN_H}+{BTN_X}+{BTN_Y}")
+	root.configure(bg="#111")
+	root.attributes("-topmost", True)
+	root.attributes("-alpha", 0.85)
+
+	def trigger():
 		global _running, _preview
 		if _running:
 			return
 		_running = True
-		print("Button pressed — starting capture...")
-		try:
-			_preview.terminate()
-			_preview.wait()
-			capture_data()
-			run(DATA_DIR)
-		except Exception as e:
-			print(f"Error: {e}")
-		finally:
-			_running = False
-			_preview = subprocess.Popen(
-				['libcamera-hello', '--timeout', '0',
-				 '--preview', '1920,0,1024,768',
-				 '--hflip', '--vflip'],
-				stdout=subprocess.DEVNULL,
-				stderr=subprocess.DEVNULL,
-			)
+		btn.config(state="disabled", bg="#555", text="Processing...")
 
-	button = Button(BUTTON_PIN)
-	button.when_pressed = on_press
-	print("Ready. Waiting for button press on GPIO 17.")
-	pause()
+		def work():
+			global _running, _preview
+			try:
+				_preview.terminate()
+				_preview.wait()
+				capture_data()
+				run(DATA_DIR)
+				root.after(0, lambda: btn.config(text="Email sent!"))
+			except Exception as e:
+				print(f"Error: {e}")
+				root.after(0, lambda: btn.config(text="Error — check logs"))
+			finally:
+				_running = False
+				_preview = subprocess.Popen(_PREVIEW_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+				root.after(0, lambda: btn.config(state="normal", bg="#2196F3", text="CAPTURE"))
+
+		Thread(target=work, daemon=True).start()
+
+	btn = tk.Button(
+		root,
+		text="CAPTURE",
+		font=("Arial", 28, "bold"),
+		bg="#2196F3",
+		fg="white",
+		activebackground="#1565C0",
+		activeforeground="white",
+		relief="flat",
+		bd=0,
+		command=trigger,
+	)
+	btn.pack(fill="both", expand=True)
+
+	physical = Button(BUTTON_PIN)
+	physical.when_pressed = lambda: root.after(0, trigger)
+
+	root.bind("<Escape>", lambda e: root.destroy())
+	root.mainloop()
 	_preview.terminate()
