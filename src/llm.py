@@ -9,6 +9,8 @@ from PIL import Image, ImageTk
 from readings import capture_data, DATA_DIR
 from mailer import send_email
 import tkinter as tk
+import evdev
+from evdev import InputDevice, ecodes
 
 BUTTON_PIN = 17
 
@@ -216,6 +218,29 @@ if __name__ == "__main__":
 		command=trigger,
 	)
 	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
+
+	def _find_touch_device():
+		for path in evdev.list_devices():
+			try:
+				dev = InputDevice(path)
+				caps = dev.capabilities()
+				if ecodes.EV_ABS in caps and ecodes.BTN_TOUCH in caps.get(ecodes.EV_KEY, []):
+					return dev
+			except Exception:
+				pass
+		return None
+
+	def _touch_thread():
+		dev = _find_touch_device()
+		if dev is None:
+			print("No evdev touch device found")
+			return
+		print(f"Touch device: {dev.name}")
+		for event in dev.read_loop():
+			if event.type == ecodes.EV_KEY and event.code == ecodes.BTN_TOUCH and event.value == 1:
+				root.after(0, trigger)
+
+	Thread(target=_touch_thread, daemon=True).start()
 
 	physical = Button(BUTTON_PIN)
 	physical.when_pressed = lambda: root.after(0, trigger)
