@@ -2,7 +2,7 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime
-from sensors import read_sensor_values, capture_photo, check_focus
+from sensors import read_sensor_values, capture_photo
 from thermal_map import save_maps
 from pmv_calculator import calculate_pmv, DEFAULT_CLO, DEFAULT_MET
 
@@ -27,11 +27,8 @@ def capture_data(met=DEFAULT_MET, clo=DEFAULT_CLO) -> str:
         print(f"Sensor faults: {'; '.join(sensor_faults)}")
 
     print("Capturing photo...")
-    photo_path = capture_photo('image', output_dir=DATA_DIR)
-    print(f"Photo done: {photo_path}")
-    sharpness, blurry = check_focus(photo_path) if photo_path else (None, False)
-    if blurry:
-        print(f"Warning: photo flagged as blurry (sharpness={sharpness})")
+    capture_photo('image', output_dir=DATA_DIR)
+    print("Photo done.")
 
     if thermal is not None:
         print("Saving thermal map...")
@@ -47,8 +44,6 @@ def capture_data(met=DEFAULT_MET, clo=DEFAULT_CLO) -> str:
     notes_parts = []
     if sensor_faults:
         notes_parts.append("SENSOR FAULT: " + "; ".join(sensor_faults))
-    if blurry:
-        notes_parts.append("BLURRY PHOTO")
     if calc_notes:
         notes_parts.append(calc_notes)
     notes = " | ".join(notes_parts) if notes_parts else "No notes."

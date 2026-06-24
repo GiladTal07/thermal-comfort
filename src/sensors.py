@@ -2,7 +2,6 @@ import board
 import busio
 import numpy as np
 import adafruit_mlx90640
-import cv2
 import os
 import time
 import subprocess
@@ -15,7 +14,6 @@ _i2c = None
 SI7021_ADDRESS = 0x40
 PAV3015_ADDRESS = 0x28
 I2C_BUS = 1
-BLUR_THRESHOLD = 100.0
 
 def read_air_speed():
     with smbus2.SMBus(I2C_BUS) as bus:
@@ -115,12 +113,6 @@ def read_sensor_values():
 
     return air_temp, humidity, mrt, thermal, air_speed, sensor_faults
 
-def check_focus(image_path):
-    img = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
-    if img is None:
-        return 0.0, True
-    variance = cv2.Laplacian(img, cv2.CV_64F).var()
-    return round(float(variance), 2), variance < BLUR_THRESHOLD
 
 def capture_photo(filename=None, output_dir=None):
     if output_dir is None:
