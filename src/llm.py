@@ -1,9 +1,10 @@
 import base64
-import subprocess
 import anthropic
 from pathlib import Path
 from threading import Thread
 from gpiozero import Button
+from picamera2 import Picamera2
+from PIL import Image, ImageTk
 from readings import capture_data, DATA_DIR
 from mailer import send_email
 import tkinter as tk
@@ -34,7 +35,7 @@ OUTPUT FORMAT — use exactly these markdown sections in this order, with no ext
 ## Appendix A — Sensor Data
 
 SECTION GUIDANCE:
-- **Summary**: 2–3 sentences. Overall comfort verdict, the PMV and PPD figures, one priority action.
+- **Summary**: 2-3 sentences. Overall comfort verdict, the PMV and PPD figures, one priority action.
 - **Room Description**: Describe the space based on the camera photo — room type, furniture \
 layout, window presence, blind/shade state (open or closed), visible occupancy, and anything \
 visually relevant to thermal comfort.
@@ -43,7 +44,7 @@ mean for the typical occupant (e.g. "PMV of +1.2 indicates mild warmth; approxim
 occupants would be dissatisfied"). Note whether humidity and air speed fall within the ISO 7730 \
 comfort bands.
 - **Findings**: Notable observations from the thermal heatmap and sensor values — radiant \
-asymmetry, localised hot or cold zones, humidity outside the 30–70 % comfort range. Flag \
+asymmetry, localised hot or cold zones, humidity outside the 30-70 % comfort range. Flag \
 anything outside ISO 7730 limits. Do not attribute findings to building system faults.
 - **Recommendations**: Bulleted list. Individual occupant actions only. Each bullet should be \
 specific, immediately actionable, and tied to a finding above.
@@ -141,37 +142,42 @@ def run(folder_path: str) -> None:
 
 if __name__ == "__main__":
 	_running = False
-	_PREVIEW_CMD = [
-		'libcamera-hello', '--timeout', '0',
-		'--preview', '1920,0,1024,768',
-		'--hflip', '--vflip',
-	]
-	_preview = subprocess.Popen(
-		_PREVIEW_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-	)
+	_photo = None
 
-	BTN_W, BTN_H = 600, 90
-	BTN_X = 1920 + (1024 - BTN_W) // 2
-	BTN_Y = 768 - BTN_H - 15
+	picam2 = Picamera2()
+	picam2.configure(picam2.create_preview_configuration(
+		main={"size": (1024, 768), "format": "RGB888"}
+	))
+	picam2.start()
 
 	root = tk.Tk()
 	root.overrideredirect(True)
-	root.geometry(f"{BTN_W}x{BTN_H}+{BTN_X}+{BTN_Y}")
-	root.configure(bg="#111")
-	root.attributes("-topmost", True)
+	root.geometry("1024x768+1920+0")
+	root.configure(bg="black")
+
+	preview_label = tk.Label(root, bg="black")
+	preview_label.place(x=0, y=0, width=1024, height=768)
+
+	def update_preview():
+		global _photo
+		if not _running:
+			frame = picam2.capture_array()
+			img = Image.fromarray(frame).rotate(180)
+			_photo = ImageTk.PhotoImage(img)
+			preview_label.config(image=_photo)
+		root.after(50, update_preview)
 
 	def trigger():
-		global _running, _preview
+		global _running
 		if _running:
 			return
 		_running = True
 		btn.config(state="disabled", bg="#555", text="Processing...")
 
 		def work():
-			global _running, _preview
+			global _running
 			try:
-				_preview.terminate()
-				_preview.wait()
+				picam2.stop()
 				capture_data()
 				run(DATA_DIR)
 				root.after(0, lambda: btn.config(text="Email sent!"))
@@ -180,9 +186,7 @@ if __name__ == "__main__":
 				root.after(0, lambda: btn.config(text="Error — check logs"))
 			finally:
 				_running = False
-				_preview = subprocess.Popen(
-					_PREVIEW_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-				)
+				picam2.start()
 				root.after(0, lambda: btn.config(
 					state="normal", bg="#2196F3", text="CAPTURE"
 				))
@@ -201,11 +205,12 @@ if __name__ == "__main__":
 		bd=0,
 		command=trigger,
 	)
-	btn.pack(fill="both", expand=True)
+	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
 
 	physical = Button(BUTTON_PIN)
 	physical.when_pressed = lambda: root.after(0, trigger)
 
 	root.bind("<Escape>", lambda e: root.destroy())
+	update_preview()
 	root.mainloop()
-	_preview.terminate()
+	picam2.stop()
