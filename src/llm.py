@@ -143,6 +143,7 @@ def run(folder_path: str) -> None:
 
 if __name__ == "__main__":
 	_running = False
+<<<<<<< HEAD
 	_photo = None
 
 	picam2 = Picamera2()
@@ -167,6 +168,26 @@ if __name__ == "__main__":
 			_photo = ImageTk.PhotoImage(img)
 			preview_label.config(image=_photo)
 		root.after(50, update_preview)
+=======
+	_preview_proc = None
+
+	def start_preview():
+		global _preview_proc
+		_preview_proc = subprocess.Popen(
+			['libcamera-hello', '--timeout', '0',
+			 '--preview', '1920,0,1024,768',
+			 '--hflip', '--vflip'],
+			stdout=subprocess.DEVNULL,
+			stderr=subprocess.DEVNULL,
+		)
+
+	def stop_preview():
+		global _preview_proc
+		if _preview_proc and _preview_proc.poll() is None:
+			_preview_proc.terminate()
+			_preview_proc.wait()
+		_preview_proc = None
+>>>>>>> parent of 36a9248 (Updated mini-screen to show live feed 2)
 
 	def trigger():
 		global _running
@@ -174,10 +195,15 @@ if __name__ == "__main__":
 			return
 		_running = True
 		btn.config(state="disabled", bg="#555", text="Processing...")
+<<<<<<< HEAD
+=======
+		status.config(text="Capturing sensors and generating report...")
+>>>>>>> parent of 36a9248 (Updated mini-screen to show live feed 2)
 
 		def work():
 			global _running
 			try:
+<<<<<<< HEAD
 				picam2.stop()
 				capture_data()
 				run(DATA_DIR)
@@ -190,14 +216,42 @@ if __name__ == "__main__":
 				picam2.start()
 				root.after(0, lambda: btn.config(
 					state="normal", bg="#2196F3", text="CAPTURE"
+=======
+				stop_preview()
+				capture_data()
+				run(DATA_DIR)
+				root.after(0, lambda: status.config(text="Done — check your email."))
+			except Exception as e:
+				print(f"Error: {e}")
+				root.after(0, lambda: status.config(text=f"Error: {e}"))
+			finally:
+				_running = False
+				start_preview()
+				root.after(0, lambda: btn.config(
+					state="normal", bg="#2196F3", text="START CAPTURE"
+>>>>>>> parent of 36a9248 (Updated mini-screen to show live feed 2)
 				))
 
 		Thread(target=work, daemon=True).start()
 
+<<<<<<< HEAD
 	btn = tk.Button(
 		root,
 		text="CAPTURE",
 		font=("Arial", 28, "bold"),
+=======
+	root = tk.Tk()
+	root.title("Thermal Comfort")
+	root.geometry("1920x1080+0+0")
+	root.resizable(False, False)
+	root.overrideredirect(True)
+	root.configure(bg="#111")
+
+	btn = tk.Button(
+		root,
+		text="START CAPTURE",
+		font=("Arial", 36, "bold"),
+>>>>>>> parent of 36a9248 (Updated mini-screen to show live feed 2)
 		bg="#2196F3",
 		fg="white",
 		activebackground="#1565C0",
@@ -206,12 +260,32 @@ if __name__ == "__main__":
 		bd=0,
 		command=trigger,
 	)
+<<<<<<< HEAD
 	btn.place(relx=0.5, y=15, relwidth=0.6, height=90, anchor="n")
+=======
+	btn.place(relx=0.5, rely=0.45, relwidth=0.8, relheight=0.4, anchor="center")
+
+	status = tk.Label(
+		root,
+		text="Ready",
+		font=("Arial", 16),
+		bg="#111",
+		fg="#aaa",
+	)
+	status.place(relx=0.5, rely=0.8, anchor="center")
+>>>>>>> parent of 36a9248 (Updated mini-screen to show live feed 2)
 
 	physical = Button(BUTTON_PIN)
 	physical.when_pressed = lambda: root.after(0, trigger)
 
 	root.bind("<Escape>", lambda e: root.destroy())
+<<<<<<< HEAD
 	update_preview()
 	root.mainloop()
 	picam2.stop()
+=======
+
+	start_preview()
+	root.mainloop()
+	stop_preview()
+>>>>>>> parent of 36a9248 (Updated mini-screen to show live feed 2)
