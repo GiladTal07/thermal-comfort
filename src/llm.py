@@ -1,4 +1,5 @@
 import base64
+import time
 import anthropic
 from pathlib import Path
 from threading import Thread
@@ -144,11 +145,15 @@ if __name__ == "__main__":
 	_running = False
 	_photo = None
 
-	picam2 = Picamera2()
-	picam2.configure(picam2.create_preview_configuration(
-		main={"size": (1024, 768), "format": "RGB888"}
-	))
-	picam2.start()
+	def _make_picam():
+		cam = Picamera2()
+		cam.configure(cam.create_preview_configuration(
+			main={"size": (1024, 768), "format": "RGB888"}
+		))
+		cam.start()
+		return cam
+
+	picam2 = _make_picam()
 
 	root = tk.Tk()
 	root.overrideredirect(True)
@@ -161,10 +166,13 @@ if __name__ == "__main__":
 	def update_preview():
 		global _photo
 		if not _running:
-			frame = picam2.capture_array()
-			img = Image.fromarray(frame).rotate(180)
-			_photo = ImageTk.PhotoImage(img)
-			preview_label.config(image=_photo)
+			try:
+				frame = picam2.capture_array()
+				img = Image.fromarray(frame).rotate(180)
+				_photo = ImageTk.PhotoImage(img)
+				preview_label.config(image=_photo)
+			except Exception:
+				pass
 		root.after(50, update_preview)
 
 	def trigger():
@@ -175,9 +183,11 @@ if __name__ == "__main__":
 		btn.config(state="disabled", bg="#555", text="Processing...")
 
 		def work():
-			global _running
+			global _running, picam2
 			try:
 				picam2.stop()
+				picam2.close()
+				time.sleep(0.5)
 				capture_data()
 				run(DATA_DIR)
 				root.after(0, lambda: btn.config(text="Email sent!"))
@@ -185,8 +195,8 @@ if __name__ == "__main__":
 				print(f"Error: {e}")
 				root.after(0, lambda: btn.config(text="Error — check logs"))
 			finally:
+				picam2 = _make_picam()
 				_running = False
-				picam2.start()
 				root.after(0, lambda: btn.config(
 					state="normal", bg="#2196F3", text="CAPTURE"
 				))
