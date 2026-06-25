@@ -275,11 +275,13 @@ if __name__ == "__main__":
 			_kbd[0] = subprocess.Popen([
 				'onboard', '--size', f'{_sw}x{kbd_h}', '--layout', 'compact',
 			])
-			root.after(800, lambda: subprocess.run(
-				['xdotool', 'search', '--name', 'Onboard',
-				 'windowmove', str(_sx), str(_sy + _sh - kbd_h)],
-				capture_output=True,
-			))
+			def _reposition():
+				subprocess.run(
+					['xdotool', 'search', '--sync', '--class', 'Onboard',
+					 'windowmove', str(_sx), str(_sy + _sh - kbd_h)],
+					capture_output=True,
+				)
+			Thread(target=_reposition, daemon=True).start()
 
 	def _close_keyboard():
 		if _kbd[0] is not None:
