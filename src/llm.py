@@ -271,24 +271,25 @@ if __name__ == "__main__":
 	wifi_frame.place(x=0, y=0, width=_sw, height=_sh)
 
 	tk.Label(wifi_frame, text="Connect to Wi-Fi", fg="white", bg="black",
-		font=("Arial", 22, "bold")).pack(pady=(_sh // 6, 24))
+		font=("Arial", 30, "bold")).pack(pady=(28, 20))
 
 	tk.Label(wifi_frame, text="Network Name (SSID)", fg="#aaaaaa", bg="black",
-		font=("Arial", 14)).pack()
+		font=("Arial", 18)).pack()
 	ssid_var = tk.StringVar()
-	tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 16), width=22,
-		bg="#222222", fg="white", insertbackground="white",
-		relief="flat").pack(pady=(4, 16), ipady=6)
+	ssid_entry = tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 20),
+		width=20, bg="#222222", fg="white", insertbackground="white", relief="flat")
+	ssid_entry.pack(pady=(6, 18), ipady=8)
 
 	tk.Label(wifi_frame, text="Password", fg="#aaaaaa", bg="black",
-		font=("Arial", 14)).pack()
+		font=("Arial", 18)).pack()
 	pw_var = tk.StringVar()
-	tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 16), width=22,
-		bg="#222222", fg="white", insertbackground="white",
-		show="*", relief="flat").pack(pady=(4, 24), ipady=6)
+	pw_entry = tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 20),
+		width=20, bg="#222222", fg="white", insertbackground="white",
+		show="*", relief="flat")
+	pw_entry.pack(pady=(6, 22), ipady=8)
 
 	wifi_status = tk.Label(wifi_frame, text="", fg="#f44336", bg="black",
-		font=("Arial", 13))
+		font=("Arial", 16))
 	wifi_status.pack()
 
 	def _show_camera():
@@ -321,12 +322,12 @@ if __name__ == "__main__":
 		Thread(target=work, daemon=True).start()
 
 	connect_btn = tk.Button(
-		wifi_frame, text="Connect", font=("Arial", 20, "bold"),
+		wifi_frame, text="Connect", font=("Arial", 24, "bold"),
 		bg="#2196F3", fg="white", activebackground="#1565C0",
 		activeforeground="white", relief="flat", bd=0,
 		command=do_connect,
 	)
-	connect_btn.pack(pady=8, ipadx=24, ipady=12)
+	connect_btn.pack(pady=10, ipadx=30, ipady=14)
 
 	wifi_frame.tkraise()
 
