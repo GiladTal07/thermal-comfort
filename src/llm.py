@@ -267,22 +267,24 @@ if __name__ == "__main__":
 	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
 
 	# ── Wi-Fi frame ───────────────────────────────────────────────────────────
-	import os as _os
-	_dbus_env = _os.environ.copy()
-	if 'DBUS_SESSION_BUS_ADDRESS' not in _dbus_env:
-		_dbus_env['DBUS_SESSION_BUS_ADDRESS'] = f'unix:path=/run/user/{_os.getuid()}/bus'
+	_kbd = [None]
 
 	def _open_keyboard():
-		subprocess.run([
-			'dbus-send', '--type=method_call', '--dest=sm.puri.OSK0',
-			'/sm/puri/OSK0', 'sm.puri.OSK0.SetVisible', 'boolean:true',
-		], env=_dbus_env, capture_output=True)
+		if _kbd[0] is None or _kbd[0].poll() is not None:
+			kbd_h = 220
+			_kbd[0] = subprocess.Popen([
+				'onboard', '--size', f'{_sw}x{kbd_h}', '--layout', 'compact',
+			])
+			root.after(800, lambda: subprocess.run(
+				['xdotool', 'search', '--name', 'Onboard',
+				 'windowmove', str(_sx), str(_sy + _sh - kbd_h)],
+				capture_output=True,
+			))
 
 	def _close_keyboard():
-		subprocess.run([
-			'dbus-send', '--type=method_call', '--dest=sm.puri.OSK0',
-			'/sm/puri/OSK0', 'sm.puri.OSK0.SetVisible', 'boolean:false',
-		], env=_dbus_env, capture_output=True)
+		if _kbd[0] is not None:
+			_kbd[0].terminate()
+			_kbd[0] = None
 
 	wifi_frame = tk.Frame(root, bg="#1a1a1a")
 	wifi_frame.place(x=0, y=0, width=_sw, height=_sh)
