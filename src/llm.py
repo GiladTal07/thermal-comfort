@@ -267,17 +267,22 @@ if __name__ == "__main__":
 	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
 
 	# ── Wi-Fi frame ───────────────────────────────────────────────────────────
+	import os as _os
+	_dbus_env = _os.environ.copy()
+	if 'DBUS_SESSION_BUS_ADDRESS' not in _dbus_env:
+		_dbus_env['DBUS_SESSION_BUS_ADDRESS'] = f'unix:path=/run/user/{_os.getuid()}/bus'
+
 	def _open_keyboard():
 		subprocess.run([
 			'dbus-send', '--type=method_call', '--dest=sm.puri.OSK0',
 			'/sm/puri/OSK0', 'sm.puri.OSK0.SetVisible', 'boolean:true',
-		], capture_output=True)
+		], env=_dbus_env, capture_output=True)
 
 	def _close_keyboard():
 		subprocess.run([
 			'dbus-send', '--type=method_call', '--dest=sm.puri.OSK0',
 			'/sm/puri/OSK0', 'sm.puri.OSK0.SetVisible', 'boolean:false',
-		], capture_output=True)
+		], env=_dbus_env, capture_output=True)
 
 	wifi_frame = tk.Frame(root, bg="#1a1a1a")
 	wifi_frame.place(x=0, y=0, width=_sw, height=_sh)
