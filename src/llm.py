@@ -170,9 +170,9 @@ def _screen_geometry():
 			# Prefer the screen not at the origin (the secondary monitor)
 			secondary = [s for s in screens if s[2] != 0 or s[3] != 0]
 			w, h, x, y = secondary[0] if secondary else screens[-1]
-		return f"{w}x{h}+{x}+{y}", w, h
+		return f"{w}x{h}+{x}+{y}", w, h, x, y
 	except Exception:
-		return "1024x768+1920+0", 1024, 768
+		return "1024x768+1920+0", 1024, 768, 1920, 0
 
 def connect_to_hotspot(ssid: str, password: str) -> tuple[bool, str]:
 	result = subprocess.run(
@@ -189,7 +189,7 @@ if __name__ == "__main__":
 	_photo = None
 	picam2 = None
 
-	_geometry, _sw, _sh = _screen_geometry()
+	_geometry, _sw, _sh, _sx, _sy = _screen_geometry()
 	print(f"Target screen: {_geometry}")
 
 	def _make_picam():
@@ -267,33 +267,52 @@ if __name__ == "__main__":
 	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
 
 	# ── Wi-Fi frame ───────────────────────────────────────────────────────────
-	wifi_frame = tk.Frame(root, bg="black")
+	_kbd = [None]
+
+	def _open_keyboard():
+		if _kbd[0] is None or _kbd[0].poll() is not None:
+			kbd_h = 220
+			_kbd[0] = subprocess.Popen([
+				'onboard', '--size', f'{_sw}x{kbd_h}',
+				'--geometry', f'+{_sx}+{_sy + _sh - kbd_h}',
+				'--layout', 'compact',
+			])
+
+	def _close_keyboard():
+		if _kbd[0] is not None:
+			_kbd[0].terminate()
+			_kbd[0] = None
+
+	wifi_frame = tk.Frame(root, bg="#1a1a1a")
 	wifi_frame.place(x=0, y=0, width=_sw, height=_sh)
 
-	tk.Label(wifi_frame, text="Connect to Wi-Fi", fg="white", bg="black",
-		font=("Arial", 30, "bold")).pack(pady=(28, 20))
+	tk.Label(wifi_frame, text="Connect to Wi-Fi", fg="white", bg="#1a1a1a",
+		font=("Arial", 32, "bold")).pack(pady=(30, 24))
 
-	tk.Label(wifi_frame, text="Network Name (SSID)", fg="#aaaaaa", bg="black",
-		font=("Arial", 18)).pack()
+	tk.Label(wifi_frame, text="Network Name (SSID)", fg="white", bg="#1a1a1a",
+		font=("Arial", 20, "bold")).pack(anchor="w", padx=60)
 	ssid_var = tk.StringVar()
-	ssid_entry = tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 20),
-		width=20, bg="#222222", fg="white", insertbackground="white", relief="flat")
-	ssid_entry.pack(pady=(6, 18), ipady=8)
+	ssid_entry = tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 22),
+		width=18, bg="white", fg="black", insertbackground="black", relief="flat")
+	ssid_entry.pack(pady=(4, 18), ipady=10, padx=60, fill="x")
+	ssid_entry.bind("<FocusIn>", lambda e: _open_keyboard())
 
-	tk.Label(wifi_frame, text="Password", fg="#aaaaaa", bg="black",
-		font=("Arial", 18)).pack()
+	tk.Label(wifi_frame, text="Password", fg="white", bg="#1a1a1a",
+		font=("Arial", 20, "bold")).pack(anchor="w", padx=60)
 	pw_var = tk.StringVar()
-	pw_entry = tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 20),
-		width=20, bg="#222222", fg="white", insertbackground="white",
+	pw_entry = tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 22),
+		width=18, bg="white", fg="black", insertbackground="black",
 		show="*", relief="flat")
-	pw_entry.pack(pady=(6, 22), ipady=8)
+	pw_entry.pack(pady=(4, 20), ipady=10, padx=60, fill="x")
+	pw_entry.bind("<FocusIn>", lambda e: _open_keyboard())
 
-	wifi_status = tk.Label(wifi_frame, text="", fg="#f44336", bg="black",
-		font=("Arial", 16))
-	wifi_status.pack()
+	wifi_status = tk.Label(wifi_frame, text="", fg="#f44336", bg="#1a1a1a",
+		font=("Arial", 18, "bold"))
+	wifi_status.pack(pady=(0, 8))
 
 	def _show_camera():
 		global picam2
+		_close_keyboard()
 		picam2 = _make_picam()
 		camera_frame.tkraise()
 		update_preview()
@@ -327,7 +346,7 @@ if __name__ == "__main__":
 		activeforeground="white", relief="flat", bd=0,
 		command=do_connect,
 	)
-	connect_btn.pack(pady=10, ipadx=30, ipady=14)
+	connect_btn.pack(pady=4, ipadx=30, ipady=14)
 
 	wifi_frame.tkraise()
 
