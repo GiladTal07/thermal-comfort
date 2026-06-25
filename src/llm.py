@@ -267,72 +267,40 @@ if __name__ == "__main__":
 	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
 
 	# ── Wi-Fi frame ───────────────────────────────────────────────────────────
-	_kbd = [None]
-	_focus_entry = [None]
-
-	def _open_keyboard():
-		if _kbd[0] is None or _kbd[0].poll() is not None:
-			kbd_h = 220
-			_kbd[0] = subprocess.Popen([
-				'onboard', '--size', f'{_sw}x{kbd_h}', '--layout', 'compact',
-			])
-			entry = _focus_entry[0]
-			if entry:
-				root.after(600, entry.focus_force)
-			def _reposition():
-				subprocess.run(
-					['xdotool', 'search', '--sync', '--class', 'Onboard',
-					 'windowmove', str(_sx), str(_sy + _sh - kbd_h)],
-					capture_output=True,
-				)
-			Thread(target=_reposition, daemon=True).start()
-		else:
-			entry = _focus_entry[0]
-			if entry:
-				entry.focus_force()
-
-	def _close_keyboard():
-		if _kbd[0] is not None:
-			_kbd[0].terminate()
-			_kbd[0] = None
-
-	def _activate_entry(entry):
-		_focus_entry[0] = entry
-		entry.focus_force()
-		_open_keyboard()
+	_kbd_shift = [False]
+	_kbd_num = [False]
+	_KBD_ALPHA = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
+	_KBD_NUM   = ['1234567890', '!@#$%&*-_+', '.,:;\'"()/\\']
 
 	wifi_frame = tk.Frame(root, bg="#1a1a1a")
 	wifi_frame.place(x=0, y=0, width=_sw, height=_sh)
 
 	tk.Label(wifi_frame, text="Connect to Wi-Fi", fg="white", bg="#1a1a1a",
-		font=("Arial", 32, "bold")).pack(pady=(30, 24))
+		font=("Arial", 24, "bold")).pack(pady=(14, 10))
 
 	tk.Label(wifi_frame, text="Network Name (SSID)", fg="white", bg="#1a1a1a",
-		font=("Arial", 20, "bold")).pack(anchor="w", padx=60)
+		font=("Arial", 16, "bold")).pack(anchor="w", padx=40)
 	ssid_var = tk.StringVar()
-	ssid_entry = tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 22),
+	ssid_entry = tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 18),
 		width=18, bg="white", fg="black", insertbackground="black", relief="flat")
-	ssid_entry.pack(pady=(4, 18), ipady=10, padx=60, fill="x")
-	ssid_entry.bind("<FocusIn>", lambda e: _open_keyboard())
-	ssid_entry.bind("<Button-1>", lambda e: _activate_entry(ssid_entry))
+	ssid_entry.pack(pady=(3, 8), ipady=7, padx=40, fill="x")
+	ssid_entry.bind("<Button-1>", lambda e: ssid_entry.focus_force())
 
 	tk.Label(wifi_frame, text="Password", fg="white", bg="#1a1a1a",
-		font=("Arial", 20, "bold")).pack(anchor="w", padx=60)
+		font=("Arial", 16, "bold")).pack(anchor="w", padx=40)
 	pw_var = tk.StringVar()
-	pw_entry = tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 22),
+	pw_entry = tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 18),
 		width=18, bg="white", fg="black", insertbackground="black",
 		show="*", relief="flat")
-	pw_entry.pack(pady=(4, 20), ipady=10, padx=60, fill="x")
-	pw_entry.bind("<FocusIn>", lambda e: _open_keyboard())
-	pw_entry.bind("<Button-1>", lambda e: _activate_entry(pw_entry))
+	pw_entry.pack(pady=(3, 6), ipady=7, padx=40, fill="x")
+	pw_entry.bind("<Button-1>", lambda e: pw_entry.focus_force())
 
 	wifi_status = tk.Label(wifi_frame, text="", fg="#f44336", bg="#1a1a1a",
-		font=("Arial", 18, "bold"))
-	wifi_status.pack(pady=(0, 8))
+		font=("Arial", 14, "bold"))
+	wifi_status.pack(pady=(0, 3))
 
 	def _show_camera():
 		global picam2
-		_close_keyboard()
 		picam2 = _make_picam()
 		camera_frame.tkraise()
 		update_preview()
@@ -361,12 +329,81 @@ if __name__ == "__main__":
 		Thread(target=work, daemon=True).start()
 
 	connect_btn = tk.Button(
-		wifi_frame, text="Connect", font=("Arial", 24, "bold"),
+		wifi_frame, text="Connect", font=("Arial", 18, "bold"),
 		bg="#2196F3", fg="white", activebackground="#1565C0",
 		activeforeground="white", relief="flat", bd=0,
 		command=do_connect,
 	)
-	connect_btn.pack(pady=4, ipadx=30, ipady=14)
+	connect_btn.pack(pady=3, ipadx=20, ipady=8)
+
+	# ── Native on-screen keyboard ─────────────────────────────────────────────
+	kbd_frame = tk.Frame(wifi_frame, bg="#222")
+	kbd_frame.pack(side="bottom", fill="x")
+
+	def _kfocus():
+		w = root.focus_get()
+		return w if w in (ssid_entry, pw_entry) else None
+
+	def _kpress(ch):
+		w = _kfocus()
+		if not w:
+			ssid_entry.focus_force()
+			w = ssid_entry
+		c = ch.upper() if _kbd_shift[0] else ch
+		w.insert(tk.INSERT, c)
+		if _kbd_shift[0]:
+			_kbd_shift[0] = False
+			_kbuild()
+
+	def _kback():
+		w = _kfocus()
+		if not w: return
+		pos = w.index(tk.INSERT)
+		if pos > 0:
+			w.delete(pos - 1)
+
+	def _kspace():
+		w = _kfocus()
+		if not w:
+			ssid_entry.focus_force()
+			w = ssid_entry
+		w.insert(tk.INSERT, ' ')
+
+	def _kbuild():
+		for child in kbd_frame.winfo_children():
+			child.destroy()
+		rows = _KBD_NUM if _kbd_num[0] else _KBD_ALPHA
+		kfont = ("Arial", 14, "bold")
+		for row in rows:
+			rf = tk.Frame(kbd_frame, bg="#222")
+			rf.pack(fill="x", pady=1, padx=2)
+			for ch in row:
+				label = ch.upper() if (_kbd_shift[0] and not _kbd_num[0]) else ch
+				tk.Button(rf, text=label, font=kfont,
+					bg="#3a3a3a", fg="white", activebackground="#555",
+					relief="flat", bd=0,
+					command=lambda c=ch: _kpress(c)
+				).pack(side="left", expand=True, fill="both", padx=1, ipady=4)
+		bf = tk.Frame(kbd_frame, bg="#222")
+		bf.pack(fill="x", pady=1, padx=2)
+		tk.Button(bf, text="ABC" if _kbd_num[0] else "?123", font=kfont,
+			bg="#555", fg="white", relief="flat", bd=0,
+			command=lambda: (_kbd_num.__setitem__(0, not _kbd_num[0]), _kbuild())
+		).pack(side="left", fill="both", padx=1, ipady=4)
+		if not _kbd_num[0]:
+			tk.Button(bf, text="⇧", font=kfont,
+				bg="#2196F3" if _kbd_shift[0] else "#555", fg="white",
+				relief="flat", bd=0,
+				command=lambda: (_kbd_shift.__setitem__(0, not _kbd_shift[0]), _kbuild())
+			).pack(side="left", fill="both", padx=1, ipady=4)
+		tk.Button(bf, text="space", font=kfont, bg="#3a3a3a", fg="white",
+			relief="flat", bd=0, command=_kspace
+		).pack(side="left", expand=True, fill="both", padx=1, ipady=4)
+		tk.Button(bf, text="⌫", font=kfont, bg="#555", fg="white",
+			relief="flat", bd=0, command=_kback
+		).pack(side="left", fill="both", padx=1, ipady=4)
+
+	_kbuild()
 
 	wifi_frame.tkraise()
 
