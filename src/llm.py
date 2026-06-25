@@ -1,6 +1,7 @@
 import base64
 import json
 import re
+import shutil
 import subprocess
 import time
 import anthropic
@@ -173,6 +174,17 @@ def _screen_geometry():
 		return "1024x768+0+0", 1024, 768, 0, 0
 
 _WIFI_CREDS = Path(__file__).parent.parent / "wifi_creds.json"
+_ARCHIVE_DIR = Path(DATA_DIR).parent / "data_archive"
+
+def _archive_capture() -> Path:
+	ts = time.strftime('%Y-%m-%d_%H-%M-%S')
+	dest = _ARCHIVE_DIR / ts
+	dest.mkdir(parents=True, exist_ok=True)
+	for fname in ('data.txt', 'image.jpg', 'thermal.png'):
+		src = Path(DATA_DIR) / fname
+		if src.exists():
+			shutil.copy2(src, dest / fname)
+	return dest
 
 def _save_wifi_creds(ssid: str, password: str) -> None:
 	try:
@@ -246,20 +258,28 @@ if __name__ == "__main__":
 
 		def work():
 			global _running, picam2
+			archive = None
 			try:
+				root.after(0, lambda: btn.config(text="Taking photo..."))
 				picam2.stop()
 				picam2.close()
 				time.sleep(0.5)
 				capture_data()
+				archive = _archive_capture()
+				root.after(0, lambda: btn.config(text="Analysing..."))
 				run(DATA_DIR)
-				root.after(0, lambda: btn.config(text="Email sent!"))
+				shutil.rmtree(archive, ignore_errors=True)
+				root.after(0, lambda: btn.config(bg="#4caf50", text="Email sent!"))
 			except Exception as e:
 				print(f"Error: {e}")
-				root.after(0, lambda: btn.config(text="Error — check logs"))
+				if archive and archive.exists():
+					root.after(0, lambda: btn.config(bg="#ff9800", text="Saved — will send when online"))
+				else:
+					root.after(0, lambda: btn.config(text="Error — check logs"))
 			finally:
 				picam2 = _make_picam()
 				_running = False
-				root.after(0, lambda: btn.config(
+				root.after(3000, lambda: btn.config(
 					state="normal", bg="#2196F3", text="CAPTURE"
 				))
 
@@ -313,11 +333,33 @@ if __name__ == "__main__":
 		font=("Arial", 12, "bold"))
 	wifi_status.pack(pady=(0, 2))
 
+	def _flush_queue():
+		folders = sorted(p.parent for p in _ARCHIVE_DIR.glob("*/data.txt"))
+		if not folders or _running:
+			return
+		def _send():
+			for folder in folders:
+				try:
+					root.after(0, lambda f=folder: btn.config(
+						state="disabled", bg="#ff9800",
+						text=f"Sending {f.name}..."
+					))
+					run(str(folder))
+					shutil.rmtree(folder, ignore_errors=True)
+				except Exception as e:
+					print(f"Queue send failed for {folder.name}: {e}")
+					break
+			root.after(0, lambda: btn.config(
+				state="normal", bg="#2196F3", text="CAPTURE"
+			))
+		Thread(target=_send, daemon=True).start()
+
 	def _show_camera():
 		global picam2
 		picam2 = _make_picam()
 		camera_frame.tkraise()
 		update_preview()
+		root.after(3000, _flush_queue)
 
 	def do_connect():
 		ssid = ssid_var.get().strip()
