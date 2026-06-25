@@ -170,9 +170,11 @@ def _screen_geometry():
 			# Prefer the screen not at the origin (the secondary monitor)
 			secondary = [s for s in screens if s[2] != 0 or s[3] != 0]
 			w, h, x, y = secondary[0] if secondary else screens[-1]
+		print(f"Screens found: {screens}")
 		return f"{w}x{h}+{x}+{y}", w, h, x, y
-	except Exception:
-		return "1024x768+1920+0", 1024, 768, 1920, 0
+	except Exception as e:
+		print(f"xrandr failed ({e}), using fallback 1024x768+0+0")
+		return "1024x768+0+0", 1024, 768, 0, 0
 
 def connect_to_hotspot(ssid: str, password: str) -> tuple[bool, str]:
 	result = subprocess.run(
@@ -271,11 +273,8 @@ if __name__ == "__main__":
 
 	def _open_keyboard():
 		if _kbd[0] is None or _kbd[0].poll() is not None:
-			kbd_h = 220
 			_kbd[0] = subprocess.Popen([
-				'onboard', '--size', f'{_sw}x{kbd_h}',
-				'--geometry', f'+{_sx}+{_sy + _sh - kbd_h}',
-				'--layout', 'compact',
+				'onboard', '--size', f'{_sw}x220', '--layout', 'compact',
 			])
 
 	def _close_keyboard():
