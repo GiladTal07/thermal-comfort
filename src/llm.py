@@ -1,11 +1,11 @@
 import base64
+import json
 import re
 import subprocess
 import time
 import anthropic
 from pathlib import Path
 from threading import Thread
-from gpiozero import Button
 from picamera2 import Picamera2
 from PIL import Image, ImageTk
 from readings import capture_data, DATA_DIR
@@ -13,8 +13,6 @@ from mailer import send_email
 import tkinter as tk
 import evdev
 from evdev import InputDevice, ecodes
-
-BUTTON_PIN = 17
 
 SYSTEM_PROMPT = """\
 You are a certified thermal comfort specialist (ISO 7730:2005) producing occupant comfort \
@@ -174,11 +172,26 @@ def _screen_geometry():
 	except Exception:
 		return "1024x768+0+0", 1024, 768, 0, 0
 
+_WIFI_CREDS = Path(__file__).parent.parent / "wifi_creds.json"
+
+def _save_wifi_creds(ssid: str, password: str) -> None:
+	try:
+		_WIFI_CREDS.write_text(json.dumps({"ssid": ssid, "password": password}))
+	except Exception:
+		pass
+
+def _load_wifi_creds() -> tuple[str, str]:
+	try:
+		data = json.loads(_WIFI_CREDS.read_text())
+		return data.get("ssid", ""), data.get("password", "")
+	except Exception:
+		return "", ""
+
 def connect_to_hotspot(ssid: str, password: str) -> tuple[bool, str]:
-	result = subprocess.run(
-		['sudo', 'nmcli', 'device', 'wifi', 'connect', ssid, 'password', password],
-		capture_output=True, text=True, timeout=30
-	)
+	cmd = ['sudo', 'nmcli', 'device', 'wifi', 'connect', ssid]
+	if password:
+		cmd += ['password', password]
+	result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 	if result.returncode == 0:
 		return True, f"Connected to {ssid}"
 	error = result.stderr.strip() or result.stdout.strip() or "Connection failed"
@@ -267,6 +280,7 @@ if __name__ == "__main__":
 	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
 
 	# ── Wi-Fi frame ───────────────────────────────────────────────────────────
+	_saved_ssid, _saved_pw = _load_wifi_creds()
 	_kbd_shift = [False]
 	_kbd_num = [False]
 	_KBD_ALPHA = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
@@ -280,7 +294,7 @@ if __name__ == "__main__":
 
 	tk.Label(wifi_frame, text="SSID", fg="white", bg="#1a1a1a",
 		font=("Arial", 14, "bold")).pack(anchor="w", padx=30)
-	ssid_var = tk.StringVar()
+	ssid_var = tk.StringVar(value=_saved_ssid)
 	ssid_entry = tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 16),
 		width=18, bg="white", fg="black", insertbackground="black", relief="flat")
 	ssid_entry.pack(pady=(2, 4), ipady=5, padx=30, fill="x")
@@ -288,7 +302,7 @@ if __name__ == "__main__":
 
 	tk.Label(wifi_frame, text="Password", fg="white", bg="#1a1a1a",
 		font=("Arial", 14, "bold")).pack(anchor="w", padx=30)
-	pw_var = tk.StringVar()
+	pw_var = tk.StringVar(value=_saved_pw)
 	pw_entry = tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 16),
 		width=18, bg="white", fg="black", insertbackground="black",
 		show="*", relief="flat")
@@ -317,6 +331,7 @@ if __name__ == "__main__":
 		def work():
 			success, msg = connect_to_hotspot(ssid, pw)
 			if success:
+				_save_wifi_creds(ssid, pw)
 				root.after(0, lambda: wifi_status.config(
 					text=f"Connected to {ssid}!", fg="#4caf50"))
 				root.after(2000, _show_camera)
@@ -407,6 +422,8 @@ if __name__ == "__main__":
 	_kbuild()
 
 	wifi_frame.tkraise()
+	if _saved_ssid:
+		root.after(500, do_connect)
 
 	# ── Touch / physical button listeners ─────────────────────────────────────
 	def _find_touch_device():
@@ -433,8 +450,6 @@ if __name__ == "__main__":
 
 	Thread(target=_touch_thread, daemon=True).start()
 
-	physical = Button(BUTTON_PIN)
-	physical.when_pressed = lambda: root.after(0, trigger)
 
 	root.bind("<Escape>", lambda e: root.destroy())
 	root.mainloop()
