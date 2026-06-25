@@ -1,4 +1,6 @@
 import base64
+import re
+import subprocess
 import time
 import anthropic
 from pathlib import Path
@@ -143,14 +145,42 @@ def run(folder_path: str) -> None:
 	print()
 	send_email("".join(output), jpg_file, png_file)
 
+def _screen_geometry():
+	"""Return (geometry_string, width, height) for the target screen.
+	Prefers a non-primary screen when two are connected, otherwise uses whichever is available."""
+	try:
+		out = subprocess.check_output(['xrandr', '--query'], text=True)
+		screens = []
+		for line in out.splitlines():
+			if ' connected ' in line:
+				m = re.search(r'(\d+)x(\d+)\+(\d+)\+(\d+)', line)
+				if m:
+					w, h, x, y = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
+					screens.append((w, h, x, y))
+		if not screens:
+			raise ValueError("no screens found")
+		if len(screens) == 1:
+			w, h, x, y = screens[0]
+		else:
+			# Prefer the screen not at the origin (the secondary monitor)
+			secondary = [s for s in screens if s[2] != 0 or s[3] != 0]
+			w, h, x, y = secondary[0] if secondary else screens[-1]
+		return f"{w}x{h}+{x}+{y}", w, h
+	except Exception:
+		return "1024x768+1920+0", 1024, 768
+
+
 if __name__ == "__main__":
 	_running = False
 	_photo = None
 
+	_geometry, _sw, _sh = _screen_geometry()
+	print(f"Target screen: {_geometry}")
+
 	def _make_picam():
 		cam = Picamera2()
 		cam.configure(cam.create_preview_configuration(
-			main={"size": (1024, 768), "format": "RGB888"}
+			main={"size": (_sw, _sh), "format": "RGB888"}
 		))
 		cam.start()
 		return cam
@@ -159,11 +189,11 @@ if __name__ == "__main__":
 
 	root = tk.Tk()
 	root.overrideredirect(True)
-	root.geometry("1024x768+1920+0")
+	root.geometry(_geometry)
 	root.configure(bg="black")
 
 	preview_label = tk.Label(root, bg="black")
-	preview_label.place(x=0, y=0, width=1024, height=768)
+	preview_label.place(x=0, y=0, width=_sw, height=_sh)
 
 	def update_preview():
 		global _photo
