@@ -276,28 +276,28 @@ if __name__ == "__main__":
 	wifi_frame.place(x=0, y=0, width=_sw, height=_sh)
 
 	tk.Label(wifi_frame, text="Connect to Wi-Fi", fg="white", bg="#1a1a1a",
-		font=("Arial", 24, "bold")).pack(pady=(14, 10))
+		font=("Arial", 22, "bold")).pack(pady=(10, 6))
 
 	tk.Label(wifi_frame, text="Network Name (SSID)", fg="white", bg="#1a1a1a",
-		font=("Arial", 16, "bold")).pack(anchor="w", padx=40)
+		font=("Arial", 15, "bold")).pack(anchor="w", padx=36)
 	ssid_var = tk.StringVar()
-	ssid_entry = tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 18),
+	ssid_entry = tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 17),
 		width=18, bg="white", fg="black", insertbackground="black", relief="flat")
-	ssid_entry.pack(pady=(3, 8), ipady=7, padx=40, fill="x")
+	ssid_entry.pack(pady=(2, 6), ipady=6, padx=36, fill="x")
 	ssid_entry.bind("<Button-1>", lambda e: ssid_entry.focus_force())
 
 	tk.Label(wifi_frame, text="Password", fg="white", bg="#1a1a1a",
-		font=("Arial", 16, "bold")).pack(anchor="w", padx=40)
+		font=("Arial", 15, "bold")).pack(anchor="w", padx=36)
 	pw_var = tk.StringVar()
-	pw_entry = tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 18),
+	pw_entry = tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 17),
 		width=18, bg="white", fg="black", insertbackground="black",
 		show="*", relief="flat")
-	pw_entry.pack(pady=(3, 6), ipady=7, padx=40, fill="x")
+	pw_entry.pack(pady=(2, 4), ipady=6, padx=36, fill="x")
 	pw_entry.bind("<Button-1>", lambda e: pw_entry.focus_force())
 
 	wifi_status = tk.Label(wifi_frame, text="", fg="#f44336", bg="#1a1a1a",
-		font=("Arial", 14, "bold"))
-	wifi_status.pack(pady=(0, 3))
+		font=("Arial", 13, "bold"))
+	wifi_status.pack(pady=(0, 2))
 
 	def _show_camera():
 		global picam2
@@ -329,12 +329,12 @@ if __name__ == "__main__":
 		Thread(target=work, daemon=True).start()
 
 	connect_btn = tk.Button(
-		wifi_frame, text="Connect", font=("Arial", 18, "bold"),
+		wifi_frame, text="Connect", font=("Arial", 17, "bold"),
 		bg="#2196F3", fg="white", activebackground="#1565C0",
 		activeforeground="white", relief="flat", bd=0,
 		command=do_connect,
 	)
-	connect_btn.pack(pady=3, ipadx=20, ipady=8)
+	connect_btn.pack(pady=2, ipadx=18, ipady=7)
 
 	# ── Native on-screen keyboard ─────────────────────────────────────────────
 	kbd_frame = tk.Frame(wifi_frame, bg="#222")
@@ -373,7 +373,7 @@ if __name__ == "__main__":
 		for child in kbd_frame.winfo_children():
 			child.destroy()
 		rows = _KBD_NUM if _kbd_num[0] else _KBD_ALPHA
-		kfont = ("Arial", 14, "bold")
+		kfont = ("Arial", 17, "bold")
 		for row in rows:
 			rf = tk.Frame(kbd_frame, bg="#222")
 			rf.pack(fill="x", pady=1, padx=2)
@@ -383,25 +383,25 @@ if __name__ == "__main__":
 					bg="#3a3a3a", fg="white", activebackground="#555",
 					relief="flat", bd=0,
 					command=lambda c=ch: _kpress(c)
-				).pack(side="left", expand=True, fill="both", padx=1, ipady=4)
+				).pack(side="left", expand=True, fill="both", padx=1, ipady=7)
 		bf = tk.Frame(kbd_frame, bg="#222")
 		bf.pack(fill="x", pady=1, padx=2)
 		tk.Button(bf, text="ABC" if _kbd_num[0] else "?123", font=kfont,
 			bg="#555", fg="white", relief="flat", bd=0,
 			command=lambda: (_kbd_num.__setitem__(0, not _kbd_num[0]), _kbuild())
-		).pack(side="left", fill="both", padx=1, ipady=4)
+		).pack(side="left", fill="both", padx=1, ipady=7)
 		if not _kbd_num[0]:
 			tk.Button(bf, text="⇧", font=kfont,
 				bg="#2196F3" if _kbd_shift[0] else "#555", fg="white",
 				relief="flat", bd=0,
 				command=lambda: (_kbd_shift.__setitem__(0, not _kbd_shift[0]), _kbuild())
-			).pack(side="left", fill="both", padx=1, ipady=4)
+			).pack(side="left", fill="both", padx=1, ipady=7)
 		tk.Button(bf, text="space", font=kfont, bg="#3a3a3a", fg="white",
 			relief="flat", bd=0, command=_kspace
-		).pack(side="left", expand=True, fill="both", padx=1, ipady=4)
+		).pack(side="left", expand=True, fill="both", padx=1, ipady=7)
 		tk.Button(bf, text="⌫", font=kfont, bg="#555", fg="white",
 			relief="flat", bd=0, command=_kback
-		).pack(side="left", fill="both", padx=1, ipady=4)
+		).pack(side="left", fill="both", padx=1, ipady=7)
 
 	_kbuild()
 
