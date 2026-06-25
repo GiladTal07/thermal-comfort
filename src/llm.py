@@ -50,7 +50,11 @@ occupants would be dissatisfied"). Note whether humidity and air speed fall with
 comfort bands.
 - **Findings**: Notable observations from the thermal heatmap and sensor values — radiant \
 asymmetry, localised hot or cold zones, humidity outside the 30-70 % comfort range. Flag \
-anything outside ISO 7730 limits. Do not attribute findings to building system faults.
+anything outside ISO 7730 limits. Do not attribute findings to building system faults. \
+If compass heading is provided, use it to infer window and wall orientation: in the northern \
+hemisphere, south-facing surfaces receive the most direct sunlight, east-facing receive morning \
+sun, and west-facing receive afternoon sun. Use this to explain radiant asymmetry or elevated \
+mean radiant temperature where visible in the heatmap.
 - **Recommendations**: Bulleted list. Individual occupant actions only. Each bullet should be \
 specific, immediately actionable, and tied to a finding above.
 - **Appendix A — Sensor Data**: All labeled sensor readings as a two-column markdown table \
@@ -67,6 +71,7 @@ def parse_readings(text: str) -> str:
 		"Humidity (%)",
 		"Mean Radiant Temperature (°C)",
 		"Air Speed (m/s)",
+		"Compass Heading (°, magnetic)",
 		"PMV",
 		"PPD (%)",
 		"TSV",
@@ -169,10 +174,20 @@ def _screen_geometry():
 	except Exception:
 		return "1024x768+1920+0", 1024, 768
 
+def connect_to_hotspot(ssid: str, password: str) -> tuple[bool, str]:
+	result = subprocess.run(
+		['nmcli', 'device', 'wifi', 'connect', ssid, 'password', password],
+		capture_output=True, text=True, timeout=30
+	)
+	if result.returncode == 0:
+		return True, f"Connected to {ssid}"
+	error = result.stderr.strip() or result.stdout.strip() or "Connection failed"
+	return False, error
 
 if __name__ == "__main__":
 	_running = False
 	_photo = None
+	picam2 = None
 
 	_geometry, _sw, _sh = _screen_geometry()
 	print(f"Target screen: {_geometry}")
@@ -185,19 +200,21 @@ if __name__ == "__main__":
 		cam.start()
 		return cam
 
-	picam2 = _make_picam()
-
 	root = tk.Tk()
 	root.overrideredirect(True)
 	root.geometry(_geometry)
 	root.configure(bg="black")
 
-	preview_label = tk.Label(root, bg="black")
+	# ── Camera frame ──────────────────────────────────────────────────────────
+	camera_frame = tk.Frame(root, bg="black")
+	camera_frame.place(x=0, y=0, width=_sw, height=_sh)
+
+	preview_label = tk.Label(camera_frame, bg="black")
 	preview_label.place(x=0, y=0, width=_sw, height=_sh)
 
 	def update_preview():
 		global _photo
-		if not _running:
+		if not _running and picam2 is not None:
 			try:
 				frame = picam2.capture_array()
 				img = Image.fromarray(frame).rotate(180)
@@ -208,8 +225,8 @@ if __name__ == "__main__":
 		root.after(50, update_preview)
 
 	def trigger():
-		global _running
-		if _running:
+		global _running, picam2
+		if picam2 is None or _running:
 			return
 		_running = True
 		btn.config(state="disabled", bg="#555", text="Processing...")
@@ -236,7 +253,7 @@ if __name__ == "__main__":
 		Thread(target=work, daemon=True).start()
 
 	btn = tk.Button(
-		root,
+		camera_frame,
 		text="CAPTURE",
 		font=("Arial", 28, "bold"),
 		bg="#2196F3",
@@ -249,6 +266,71 @@ if __name__ == "__main__":
 	)
 	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
 
+	# ── Wi-Fi frame ───────────────────────────────────────────────────────────
+	wifi_frame = tk.Frame(root, bg="black")
+	wifi_frame.place(x=0, y=0, width=_sw, height=_sh)
+
+	tk.Label(wifi_frame, text="Connect to Wi-Fi", fg="white", bg="black",
+		font=("Arial", 22, "bold")).pack(pady=(_sh // 6, 24))
+
+	tk.Label(wifi_frame, text="Network Name (SSID)", fg="#aaaaaa", bg="black",
+		font=("Arial", 14)).pack()
+	ssid_var = tk.StringVar()
+	tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 16), width=22,
+		bg="#222222", fg="white", insertbackground="white",
+		relief="flat").pack(pady=(4, 16), ipady=6)
+
+	tk.Label(wifi_frame, text="Password", fg="#aaaaaa", bg="black",
+		font=("Arial", 14)).pack()
+	pw_var = tk.StringVar()
+	tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 16), width=22,
+		bg="#222222", fg="white", insertbackground="white",
+		show="*", relief="flat").pack(pady=(4, 24), ipady=6)
+
+	wifi_status = tk.Label(wifi_frame, text="", fg="#f44336", bg="black",
+		font=("Arial", 13))
+	wifi_status.pack()
+
+	def _show_camera():
+		global picam2
+		picam2 = _make_picam()
+		camera_frame.tkraise()
+		update_preview()
+
+	def do_connect():
+		ssid = ssid_var.get().strip()
+		pw = pw_var.get().strip()
+		if not ssid:
+			wifi_status.config(text="Please enter a network name.", fg="#f44336")
+			return
+		connect_btn.config(state="disabled", text="Connecting...")
+		wifi_status.config(text="")
+
+		def work():
+			success, msg = connect_to_hotspot(ssid, pw)
+			if success:
+				root.after(0, lambda: wifi_status.config(
+					text=f"Connected to {ssid}!", fg="#4caf50"))
+				root.after(2000, _show_camera)
+			else:
+				root.after(0, lambda: (
+					connect_btn.config(state="normal", text="Connect"),
+					wifi_status.config(text=f"Failed: {msg}", fg="#f44336"),
+				))
+
+		Thread(target=work, daemon=True).start()
+
+	connect_btn = tk.Button(
+		wifi_frame, text="Connect", font=("Arial", 20, "bold"),
+		bg="#2196F3", fg="white", activebackground="#1565C0",
+		activeforeground="white", relief="flat", bd=0,
+		command=do_connect,
+	)
+	connect_btn.pack(pady=8, ipadx=24, ipady=12)
+
+	wifi_frame.tkraise()
+
+	# ── Touch / physical button listeners ─────────────────────────────────────
 	def _find_touch_device():
 		for path in evdev.list_devices():
 			try:
@@ -277,6 +359,6 @@ if __name__ == "__main__":
 	physical.when_pressed = lambda: root.after(0, trigger)
 
 	root.bind("<Escape>", lambda e: root.destroy())
-	update_preview()
 	root.mainloop()
-	picam2.stop()
+	if picam2 is not None:
+		picam2.stop()

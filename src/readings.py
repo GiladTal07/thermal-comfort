@@ -21,8 +21,8 @@ def capture_data(met=DEFAULT_MET, clo=DEFAULT_CLO) -> str:
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
     print("Reading sensors...")
-    air_temp, humidity, mean_radiant, thermal, air_speed, sensor_faults = read_sensor_values()
-    print(f"Sensors done. air_temp={air_temp} humidity={humidity} mrt={mean_radiant} air_speed={air_speed}")
+    air_temp, humidity, mean_radiant, thermal, air_speed, heading, sensor_faults = read_sensor_values()
+    print(f"Sensors done. air_temp={air_temp} humidity={humidity} mrt={mean_radiant} air_speed={air_speed} heading={heading}")
     if sensor_faults:
         print(f"Sensor faults: {'; '.join(sensor_faults)}")
 
@@ -48,7 +48,7 @@ def capture_data(met=DEFAULT_MET, clo=DEFAULT_CLO) -> str:
         notes_parts.append(calc_notes)
     notes = " | ".join(notes_parts) if notes_parts else "No notes."
 
-    line = f"{timestamp} | {air_temp} | {humidity} | {mean_radiant} | {air_speed} | {pmv} | {ppd} | {tsv} | {notes}"
+    line = f"{timestamp} | {air_temp} | {humidity} | {mean_radiant} | {air_speed} | {heading} | {pmv} | {ppd} | {tsv} | {notes}"
     with open(os.path.join(DATA_DIR, 'data.txt'), 'w') as f:
         f.write(line + '\n')
 

@@ -80,7 +80,7 @@ def read_sensor_values():
         init_sensors()
         print("I2C init done.")
     except Exception as e:
-        return None, None, None, None, None, [f"I2C init failed: {e}"]
+        return None, None, None, None, None, None, [f"I2C init failed: {e}"]
 
     thermal = None
     mrt = None
@@ -114,7 +114,16 @@ def read_sensor_values():
         sensor_faults.append(f"PAV3015: {e}")
         print(f"PAV3015 error: {e}")
 
-    return air_temp, humidity, mrt, thermal, air_speed, sensor_faults
+    heading = None
+    print("Reading BMM150...")
+    try:
+        heading = read_bmm150()
+        print(f"BMM150 done. heading={heading}°")
+    except Exception as e:
+        sensor_faults.append(f"BMM150: {e}")
+        print(f"BMM150 error: {e}")
+
+    return air_temp, humidity, mrt, thermal, air_speed, heading, sensor_faults
 
 
 def capture_photo(filename=None, output_dir=None):
