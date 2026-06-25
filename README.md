@@ -1,6 +1,6 @@
 # Thermal Comfort Monitor
 
-A Raspberry Pi-based device that measures environmental conditions in real time, calculates ISO 7730 thermal comfort indices, and emails an AI-generated comfort analysis — triggered by the press of a physical button. Runs headlessly with no monitor required.
+A Raspberry Pi-based device that measures environmental conditions in real time, calculates ISO 7730 thermal comfort indices, and emails an AI-generated comfort analysis. It runs a full-screen touchscreen UI: a Wi-Fi setup screen on first boot, then a live camera preview with a CAPTURE button that triggers the analysis.
 
 ## Overview
 
@@ -22,26 +22,28 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 | MLX90640 (32×24 IR array) | Mean radiant temperature + thermal heatmap |
 | PAV3015 (I²C, address `0x28`) | Air speed (m/s) |
 | Pi Camera (libcamera) | High-resolution photo of the space |
-| OSOYOO 3.5" HDMI touchscreen | On-screen trigger button |
-| Pushbutton on GPIO 17 | Physical trigger (optional) |
+| BMM150 (I²C, address `0x13`, bus 3) | Compass heading |
+| OSOYOO 3.5" HDMI touchscreen | Live camera preview + on-screen CAPTURE button |
 
 ## Project Structure
 
 ```
 thermal-comfort/
 ├── src/                    # Device application code
-│   ├── llm.py              # Entry point: button trigger, Claude analysis, email dispatch
-│   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, Pi camera
+│   ├── llm.py              # Entry point: touchscreen UI, Wi-Fi setup, Claude analysis, email dispatch
+│   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, BMM150, Pi camera
 │   ├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
 │   ├── pmv_calculator.py   # PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
 │   ├── readings.py         # Orchestrates a full capture: sensors → photo → heatmap → PMV → log
 │   ├── mailer.py           # HTML email dispatch via Gmail (SMTP)
 │   └── template.html       # Email report template (professional layout with appendix sections)
-└── data/                   # Overwritten on every capture — only the most recent reading is kept
-    ├── data.txt            # Pipe-delimited sensor values
-    ├── image.jpg           # Pi camera photo
-    ├── thermal.png         # Bicubic-upscaled thermal heatmap
-    └── thermal.json        # Raw 24×32 float array
+├── data/                   # Overwritten on every capture — only the most recent reading is kept
+│   ├── data.txt            # Pipe-delimited sensor values
+│   ├── image.jpg           # Pi camera photo
+│   ├── thermal.png         # Bicubic-upscaled thermal heatmap
+│   └── thermal.json        # Raw 24×32 float array
+├── data_archive/           # Offline queue — captures saved here when no internet; sent on reconnect
+└── wifi_creds.json         # Saved Wi-Fi credentials (SSID + password) for auto-connect on boot
 ```
 
 ## Setup
@@ -59,7 +61,7 @@ cd thermal-comfort
 ```bash
 sudo apt install -y python3-picamera2
 pip install pythermalcomfort anthropic adafruit-blinka \
-            adafruit-circuitpython-mlx90640 smbus2 gpiozero \
+            adafruit-circuitpython-mlx90640 smbus2 \
             matplotlib scipy numpy==1.26.4 evdev Pillow markdown --break-system-packages
 ```
 
@@ -67,8 +69,27 @@ pip install pythermalcomfort anthropic adafruit-blinka \
 
 ```bash
 sudo raspi-config  # Interface Options → I2C → Enable
+```
+
+Then add a second I²C bus for the BMM150 (isolated from the other sensors to prevent interference). Edit `/boot/firmware/config.txt`:
+
+```bash
+sudo nano /boot/firmware/config.txt
+```
+
+Add at the bottom:
+
+```
+dtoverlay=i2c-gpio,bus=3,i2c_gpio_sda=22,i2c_gpio_scl=23
+```
+
+Then reboot:
+
+```bash
 sudo reboot
 ```
+
+Wire the BMM150 SDA → GPIO 22 (pin 15) and SCL → GPIO 23 (pin 16). All other sensors remain on GPIO 2/3 (I²C bus 1).
 
 ### 4. Configure environment variables
 
@@ -139,7 +160,11 @@ The service will now start automatically on every boot with no monitor needed.
 
 ### Normal operation
 
-With the service running, press the button on GPIO 17. The device will capture sensors + photo, call Claude, and email the report.
+With the service running, the touchscreen shows a Wi-Fi setup screen on first boot. Enter the network credentials and tap **Connect**. Once connected, the live camera preview appears with a **CAPTURE** button at the bottom. Tap it to capture sensors + photo, call Claude, and email the report.
+
+On subsequent boots the device auto-connects using saved credentials and goes straight to the camera preview.
+
+If the device is offline when CAPTURE is pressed, the capture is archived to `data_archive/` and sent automatically the next time a connection is established.
 
 ### Manual run (no systemd)
 
@@ -232,8 +257,7 @@ ISO 7730 recommends keeping PMV between **−0.5 and +0.5** (PPD < 10%).
 - [pythermalcomfort](https://pythermalcomfort.readthedocs.io/) — ISO 7730:2005 thermal comfort calculations
 - [anthropic](https://docs.anthropic.com/) — Claude API client
 - [adafruit-circuitpython-mlx90640](https://github.com/adafruit/Adafruit_CircuitPython_MLX90640) — MLX90640 IR array
-- [smbus2](https://pypi.org/project/smbus2/) — Direct I²C communication for PAV3015 air speed sensor
-- [gpiozero](https://gpiozero.readthedocs.io/) — GPIO button input
+- [smbus2](https://pypi.org/project/smbus2/) — Direct I²C communication for PAV3015 and BMM150
 - [matplotlib](https://matplotlib.org/) + [scipy](https://scipy.org/) — Thermal heatmap generation
 - [picamera2](https://github.com/raspberrypi/picamera2) — Live camera preview embedded in the touchscreen UI
 - [Pillow](https://python-pillow.org/) — Image conversion for the tkinter preview feed
