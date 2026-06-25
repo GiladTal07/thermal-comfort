@@ -268,6 +268,7 @@ if __name__ == "__main__":
 
 	# ── Wi-Fi frame ───────────────────────────────────────────────────────────
 	_kbd = [None]
+	_focus_entry = [None]
 
 	def _open_keyboard():
 		if _kbd[0] is None or _kbd[0].poll() is not None:
@@ -275,6 +276,9 @@ if __name__ == "__main__":
 			_kbd[0] = subprocess.Popen([
 				'onboard', '--size', f'{_sw}x{kbd_h}', '--layout', 'compact',
 			])
+			entry = _focus_entry[0]
+			if entry:
+				root.after(600, entry.focus_force)
 			def _reposition():
 				subprocess.run(
 					['xdotool', 'search', '--sync', '--class', 'Onboard',
@@ -282,11 +286,20 @@ if __name__ == "__main__":
 					capture_output=True,
 				)
 			Thread(target=_reposition, daemon=True).start()
+		else:
+			entry = _focus_entry[0]
+			if entry:
+				entry.focus_force()
 
 	def _close_keyboard():
 		if _kbd[0] is not None:
 			_kbd[0].terminate()
 			_kbd[0] = None
+
+	def _activate_entry(entry):
+		_focus_entry[0] = entry
+		entry.focus_force()
+		_open_keyboard()
 
 	wifi_frame = tk.Frame(root, bg="#1a1a1a")
 	wifi_frame.place(x=0, y=0, width=_sw, height=_sh)
@@ -301,6 +314,7 @@ if __name__ == "__main__":
 		width=18, bg="white", fg="black", insertbackground="black", relief="flat")
 	ssid_entry.pack(pady=(4, 18), ipady=10, padx=60, fill="x")
 	ssid_entry.bind("<FocusIn>", lambda e: _open_keyboard())
+	ssid_entry.bind("<Button-1>", lambda e: _activate_entry(ssid_entry))
 
 	tk.Label(wifi_frame, text="Password", fg="white", bg="#1a1a1a",
 		font=("Arial", 20, "bold")).pack(anchor="w", padx=60)
@@ -310,6 +324,7 @@ if __name__ == "__main__":
 		show="*", relief="flat")
 	pw_entry.pack(pady=(4, 20), ipady=10, padx=60, fill="x")
 	pw_entry.bind("<FocusIn>", lambda e: _open_keyboard())
+	pw_entry.bind("<Button-1>", lambda e: _activate_entry(pw_entry))
 
 	wifi_status = tk.Label(wifi_frame, text="", fg="#f44336", bg="#1a1a1a",
 		font=("Arial", 18, "bold"))
