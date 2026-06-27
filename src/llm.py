@@ -199,6 +199,16 @@ def _load_wifi_creds() -> tuple[str, str]:
 	except Exception:
 		return "", ""
 
+def _is_connected() -> bool:
+	try:
+		result = subprocess.run(
+			['nmcli', '-t', '-f', 'CONNECTIVITY', 'general'],
+			capture_output=True, text=True, timeout=5
+		)
+		return result.stdout.strip() not in ('none', '')
+	except Exception:
+		return False
+
 def connect_to_hotspot(ssid: str, password: str) -> tuple[bool, str]:
 	cmd = ['sudo', 'nmcli', 'device', 'wifi', 'connect', ssid]
 	if password:
@@ -463,9 +473,12 @@ if __name__ == "__main__":
 
 	_kbuild()
 
-	wifi_frame.tkraise()
-	if _saved_ssid:
-		root.after(500, do_connect)
+	if _is_connected():
+		root.after(0, _show_camera)
+	else:
+		wifi_frame.tkraise()
+		if _saved_ssid:
+			root.after(500, do_connect)
 
 	# ── Touch / physical button listeners ─────────────────────────────────────
 	def _find_touch_device():
