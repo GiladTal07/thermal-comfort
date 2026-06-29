@@ -22,6 +22,11 @@ movement would benefit comfort, the recommendation must name a specific occupant
 4. The Recommendations section must address every comfort parameter individually. For each \
 parameter, either give a specific occupant action or explicitly state the value is acceptable. \
 Do not pad with generic wellness advice.
+5. Only reference what is directly observable in the provided inputs — sensor readings, camera \
+photo, and thermal heatmap. Do not invent or assume features not visible in the photo or \
+reflected in the data (e.g. do not mention a window, blind, heat source, or occupant if none \
+is visible). Do not write hypothetical or future-tense recommendations ("if you later find…", \
+"should conditions change…"). Every statement must be grounded in the data as it stands now.
 
 OUTPUT FORMAT — use exactly these markdown sections in this order, with no extra sections:
 
@@ -50,7 +55,7 @@ experienced differently by male versus female occupants.
 asymmetry, localised hot or cold zones, humidity outside the 30-70 % comfort range. Flag \
 anything outside ISO 7730 limits. Do not attribute findings to building system faults. \
 Use the timestamp to factor in time-of-day context: early morning (before 09:00) may reflect \
-HVAC warm-up with residual overnight cool; midday to mid-afternoon (12:00–16:00) brings peak \
+HVAC warm-up with residual overnight cool; midday to mid-afternoon (12:00-16:00) brings peak \
 solar gain, especially on south- and west-facing surfaces; late afternoon and evening may show \
 accumulated building heat. If compass heading is provided, use it to infer window and wall \
 orientation: in the northern hemisphere, south-facing surfaces receive the most direct sunlight, \
@@ -58,7 +63,7 @@ east-facing receive morning sun, and west-facing receive afternoon sun. Combine 
 timestamp to explain radiant asymmetry or elevated mean radiant temperature where visible in \
 the heatmap.
 - **Recommendations**: A structured list with one entry per comfort parameter in this order: \
-Air Temperature, Humidity, Mean Radiant Temperature, Air Speed, PMV/PPD. For each parameter, \
+Air Temperature, Humidity, Mean Radiant Temperature. For each parameter, \
 either give a specific, immediately actionable occupant recommendation tied to a finding above, \
 or state that the value is within the acceptable range and no action is needed. Every parameter \
 must appear — none may be omitted.
