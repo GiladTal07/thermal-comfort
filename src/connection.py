@@ -16,7 +16,7 @@ def is_connected() -> bool:
 			['nmcli', '-t', '-f', 'CONNECTIVITY', 'general'],
 			capture_output=True, text=True, timeout=5
 		)
-		return result.stdout.strip() not in ('none', '')
+		return result.stdout.strip() == 'full'
 	except Exception:
 		return False
 

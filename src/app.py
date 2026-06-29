@@ -170,6 +170,8 @@ if __name__ == "__main__":
 			return
 		def _send():
 			for folder in folders:
+				if not is_connected():
+					break
 				try:
 					root.after(0, lambda f=folder: btn.config(
 						state="disabled", bg="#ff9800",
