@@ -281,16 +281,16 @@ if __name__ == "__main__":
 	btn_row = tk.Frame(pwd_frame, bg="#1a1a1a")
 	btn_row.pack(pady=4)
 
-	tk.Button(btn_row, text="← Back", font=("Arial", 14),
+	tk.Button(btn_row, text="← Back", font=("Arial", 18, "bold"),
 		bg="#555", fg="white", activebackground="#444", relief="flat", bd=0,
 		command=lambda: net_list_frame.tkraise()
-	).pack(side="left", ipadx=12, ipady=6, padx=(0, 8))
+	).pack(side="left", ipadx=20, ipady=12, padx=(0, 10))
 
-	connect_btn = tk.Button(btn_row, text="Connect", font=("Arial", 14, "bold"),
+	connect_btn = tk.Button(btn_row, text="Connect", font=("Arial", 18, "bold"),
 		bg="#2196F3", fg="white", activebackground="#1565C0", relief="flat", bd=0,
 		command=do_connect,
 	)
-	connect_btn.pack(side="left", ipadx=16, ipady=6)
+	connect_btn.pack(side="left", ipadx=24, ipady=12)
 
 	# ── On-screen keyboard (password frame only) ──────────────────────────────
 	kbd_frame = tk.Frame(pwd_frame, bg="#222")
