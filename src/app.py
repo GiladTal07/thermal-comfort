@@ -231,13 +231,14 @@ if __name__ == "__main__":
 		root.after(0, lambda: scan_status.config(text="Scanning...", fg="#888888"))
 		networks = scan_nearby_ssids()
 		known = get_known_ssids()
+		networks.sort(key=lambda s: (0 if s in known else 1, s))
 		root.after(0, lambda: scan_status.config(text=""))
 		root.after(0, lambda: _populate_networks(networks, known))
 
-	tk.Button(net_list_frame, text="↻  Refresh", font=("Arial", 13),
+	tk.Button(net_list_frame, text="↻  Refresh", font=("Arial", 16, "bold"),
 		bg="#333", fg="white", activebackground="#555", relief="flat", bd=0,
 		command=lambda: Thread(target=_do_scan, daemon=True).start()
-	).pack(pady=(0, 6))
+	).pack(pady=(0, 6), ipadx=20, ipady=10, padx=20, fill="x")
 
 	# ── Password frame ────────────────────────────────────────────────────────
 	pwd_frame = tk.Frame(root, bg="#1a1a1a")

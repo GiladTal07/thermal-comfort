@@ -59,14 +59,21 @@ def get_known_ssids() -> set:
 def scan_nearby_ssids() -> list[str]:
 	try:
 		result = subprocess.run(
-			['nmcli', '-t', '-f', 'SSID', 'device', 'wifi', 'list'],
+			['nmcli', '-t', '-f', 'SSID,SIGNAL', 'device', 'wifi', 'list'],
 			capture_output=True, text=True, timeout=15
 		)
 		seen = set()
 		networks = []
 		for line in result.stdout.splitlines():
-			ssid = line.strip()
-			if ssid and ssid not in seen:
+			parts = line.rsplit(':', 1)
+			if len(parts) != 2:
+				continue
+			ssid = parts[0].strip()
+			try:
+				signal = int(parts[1].strip())
+			except ValueError:
+				continue
+			if ssid and ssid not in seen and signal >= 30:
 				seen.add(ssid)
 				networks.append(ssid)
 		return networks
