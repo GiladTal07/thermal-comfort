@@ -393,6 +393,18 @@ if __name__ == "__main__":
 	else:
 		offline_frame.tkraise()
 
+	# ── Connectivity poll ────────────────────────────────────────────────────
+	_was_connected = [is_connected()]
+
+	def _poll_connection():
+		now = is_connected()
+		if now and not _was_connected[0]:
+			_flush_queue()
+		_was_connected[0] = now
+		root.after(15000, _poll_connection)
+
+	root.after(15000, _poll_connection)
+
 	# ── Touch listener ────────────────────────────────────────────────────────
 	def _find_touch_device():
 		for path in list_devices():
