@@ -192,12 +192,6 @@ def _save_wifi_creds(ssid: str, password: str) -> None:
 	except Exception:
 		pass
 
-def _load_wifi_creds() -> tuple[str, str]:
-	try:
-		data = json.loads(_WIFI_CREDS.read_text())
-		return data.get("ssid", ""), data.get("password", "")
-	except Exception:
-		return "", ""
 
 def _is_connected() -> bool:
 	try:
@@ -208,6 +202,17 @@ def _is_connected() -> bool:
 		return result.stdout.strip() not in ('none', '')
 	except Exception:
 		return False
+
+def _connect_saved(ssid: str) -> tuple[bool, str]:
+	"""Connects to an existing saved nmcli connection profile by SSID."""
+	result = subprocess.run(
+		['sudo', 'nmcli', 'connection', 'up', ssid],
+		capture_output=True, text=True, timeout=30
+	)
+	if result.returncode == 0:
+		return True, f"Connected to {ssid}"
+	error = result.stderr.strip() or result.stdout.strip() or "Connection failed"
+	return False, error
 
 def connect_to_hotspot(ssid: str, password: str) -> tuple[bool, str]:
 	cmd = ['sudo', 'nmcli', 'device', 'wifi', 'connect', ssid]
@@ -309,39 +314,25 @@ if __name__ == "__main__":
 	)
 	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
 
-	# ── Wi-Fi frame ───────────────────────────────────────────────────────────
-	_saved_ssid, _saved_pw = _load_wifi_creds()
+	# ── Network list frame ───────────────────────────────────────────────────
 	_kbd_shift = [False]
 	_kbd_num = [False]
 	_KBD_ALPHA = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
 	_KBD_NUM   = ['1234567890', '!@#$%&*-_+', '.,:;\'"()/\\']
+	_selected_ssid = [None]
 
-	wifi_frame = tk.Frame(root, bg="#1a1a1a")
-	wifi_frame.place(x=0, y=0, width=_sw, height=_sh)
+	net_list_frame = tk.Frame(root, bg="#1a1a1a")
+	net_list_frame.place(x=0, y=0, width=_sw, height=_sh)
 
-	tk.Label(wifi_frame, text="Connect to Wi-Fi", fg="white", bg="#1a1a1a",
-		font=("Arial", 20, "bold")).pack(pady=(8, 4))
+	tk.Label(net_list_frame, text="Select a Network", fg="white", bg="#1a1a1a",
+		font=("Arial", 20, "bold")).pack(pady=(12, 4))
 
-	tk.Label(wifi_frame, text="SSID", fg="white", bg="#1a1a1a",
-		font=("Arial", 14, "bold")).pack(anchor="w", padx=30)
-	ssid_var = tk.StringVar(value=_saved_ssid)
-	ssid_entry = tk.Entry(wifi_frame, textvariable=ssid_var, font=("Arial", 16),
-		width=18, bg="white", fg="black", insertbackground="black", relief="flat")
-	ssid_entry.pack(pady=(2, 4), ipady=5, padx=30, fill="x")
-	ssid_entry.bind("<Button-1>", lambda e: ssid_entry.focus_force())
+	scan_status = tk.Label(net_list_frame, text="", fg="#888888", bg="#1a1a1a",
+		font=("Arial", 13))
+	scan_status.pack()
 
-	tk.Label(wifi_frame, text="Password", fg="white", bg="#1a1a1a",
-		font=("Arial", 14, "bold")).pack(anchor="w", padx=30)
-	pw_var = tk.StringVar(value=_saved_pw)
-	pw_entry = tk.Entry(wifi_frame, textvariable=pw_var, font=("Arial", 16),
-		width=18, bg="white", fg="black", insertbackground="black",
-		show="*", relief="flat")
-	pw_entry.pack(pady=(2, 4), ipady=5, padx=30, fill="x")
-	pw_entry.bind("<Button-1>", lambda e: pw_entry.focus_force())
-
-	wifi_status = tk.Label(wifi_frame, text="", fg="#f44336", bg="#1a1a1a",
-		font=("Arial", 12, "bold"))
-	wifi_status.pack(pady=(0, 2))
+	net_scroll_frame = tk.Frame(net_list_frame, bg="#1a1a1a")
+	net_scroll_frame.pack(fill="both", expand=True, padx=20, pady=4)
 
 	def _flush_queue():
 		folders = sorted(p.parent for p in _ARCHIVE_DIR.glob("*/data.txt"))
@@ -371,70 +362,155 @@ if __name__ == "__main__":
 		update_preview()
 		root.after(3000, _flush_queue)
 
-	def do_connect():
-		ssid = ssid_var.get().strip()
-		pw = pw_var.get().strip()
-		if not ssid:
-			wifi_status.config(text="Please enter a network name.", fg="#f44336")
-			return
-		connect_btn.config(state="disabled", text="Connecting...")
-		wifi_status.config(text="")
+	def _get_known_ssids() -> set:
+		try:
+			conns = subprocess.run(
+				['nmcli', '-t', '-f', 'NAME,TYPE', 'connection', 'show'],
+				capture_output=True, text=True, timeout=5
+			)
+			known = set()
+			for line in conns.stdout.splitlines():
+				parts = line.split(':')
+				if len(parts) >= 2 and '802-11-wireless' in parts[1]:
+					known.add(parts[0])
+			return known
+		except Exception:
+			return set()
 
+	def _on_network_tap(ssid, known):
+		if known:
+			scan_status.config(text=f"Connecting to {ssid}...", fg="#888888")
+			def _do():
+				success, msg = _connect_saved(ssid)
+				if success:
+					root.after(0, _show_camera)
+				else:
+					root.after(0, lambda: scan_status.config(text=f"Failed: {msg}", fg="#f44336"))
+			Thread(target=_do, daemon=True).start()
+		else:
+			_selected_ssid[0] = ssid
+			ssid_label.config(text=ssid)
+			pw_var.set("")
+			pw_status.config(text="")
+			connect_btn.config(state="normal", text="Connect")
+			pwd_frame.tkraise()
+			pw_entry.focus_force()
+
+	def _populate_networks(networks, known):
+		for w in net_scroll_frame.winfo_children():
+			w.destroy()
+		if not networks:
+			tk.Label(net_scroll_frame, text="No networks found.", fg="#888888",
+				bg="#1a1a1a", font=("Arial", 14)).pack(pady=20)
+			return
+		for ssid in networks:
+			is_known = ssid in known
+			row = tk.Frame(net_scroll_frame, bg="#2a2a2a", cursor="hand2")
+			row.pack(fill="x", pady=3, ipady=8)
+			tk.Label(row, text=ssid, fg="white", bg="#2a2a2a",
+				font=("Arial", 15, "bold"), anchor="w").pack(side="left", padx=12)
+			if is_known:
+				tk.Label(row, text="saved", fg="#4caf50", bg="#2a2a2a",
+					font=("Arial", 12)).pack(side="right", padx=12)
+			row.bind("<Button-1>", lambda e, s=ssid, k=is_known: _on_network_tap(s, k))
+			for child in row.winfo_children():
+				child.bind("<Button-1>", lambda e, s=ssid, k=is_known: _on_network_tap(s, k))
+
+	def _scan_networks():
+		root.after(0, lambda: scan_status.config(text="Scanning...", fg="#888888"))
+		try:
+			result = subprocess.run(
+				['nmcli', '-t', '-f', 'SSID', 'device', 'wifi', 'list'],
+				capture_output=True, text=True, timeout=15
+			)
+			seen = set()
+			networks = []
+			for line in result.stdout.splitlines():
+				ssid = line.strip()
+				if ssid and ssid not in seen:
+					seen.add(ssid)
+					networks.append(ssid)
+		except Exception:
+			networks = []
+		known = _get_known_ssids()
+		root.after(0, lambda: scan_status.config(text=""))
+		root.after(0, lambda: _populate_networks(networks, known))
+
+	tk.Button(net_list_frame, text="↻  Refresh", font=("Arial", 13),
+		bg="#333", fg="white", activebackground="#555", relief="flat", bd=0,
+		command=lambda: Thread(target=_scan_networks, daemon=True).start()
+	).pack(pady=(0, 6))
+
+	# ── Password frame ────────────────────────────────────────────────────────
+	pwd_frame = tk.Frame(root, bg="#1a1a1a")
+	pwd_frame.place(x=0, y=0, width=_sw, height=_sh)
+
+	tk.Label(pwd_frame, text="Enter Password", fg="white", bg="#1a1a1a",
+		font=("Arial", 20, "bold")).pack(pady=(12, 4))
+
+	ssid_label = tk.Label(pwd_frame, text="", fg="#888888", bg="#1a1a1a",
+		font=("Arial", 15))
+	ssid_label.pack()
+
+	pw_var = tk.StringVar()
+	pw_entry = tk.Entry(pwd_frame, textvariable=pw_var, font=("Arial", 16),
+		bg="white", fg="black", insertbackground="black", show="*", relief="flat")
+	pw_entry.pack(pady=(8, 4), ipady=5, padx=30, fill="x")
+	pw_entry.bind("<Button-1>", lambda e: pw_entry.focus_force())
+
+	pw_status = tk.Label(pwd_frame, text="", fg="#f44336", bg="#1a1a1a",
+		font=("Arial", 12, "bold"))
+	pw_status.pack(pady=(0, 2))
+
+	def do_connect():
+		ssid = _selected_ssid[0]
+		pw = pw_var.get().strip()
+		pw_status.config(text="")
+		connect_btn.config(state="disabled", text="Connecting...")
 		def work():
 			success, msg = connect_to_hotspot(ssid, pw)
 			if success:
 				_save_wifi_creds(ssid, pw)
-				root.after(0, lambda: wifi_status.config(
-					text=f"Connected to {ssid}!", fg="#4caf50"))
-				root.after(2000, _show_camera)
+				root.after(0, _show_camera)
 			else:
 				root.after(0, lambda: (
 					connect_btn.config(state="normal", text="Connect"),
-					wifi_status.config(text=f"Failed: {msg}", fg="#f44336"),
+					pw_status.config(text=f"Failed: {msg}", fg="#f44336"),
 				))
-
 		Thread(target=work, daemon=True).start()
 
-	connect_btn = tk.Button(
-		wifi_frame, text="Connect", font=("Arial", 16, "bold"),
-		bg="#2196F3", fg="white", activebackground="#1565C0",
-		activeforeground="white", relief="flat", bd=0,
+	btn_row = tk.Frame(pwd_frame, bg="#1a1a1a")
+	btn_row.pack(pady=4)
+
+	tk.Button(btn_row, text="← Back", font=("Arial", 14),
+		bg="#555", fg="white", activebackground="#444", relief="flat", bd=0,
+		command=lambda: net_list_frame.tkraise()
+	).pack(side="left", ipadx=12, ipady=6, padx=(0, 8))
+
+	connect_btn = tk.Button(btn_row, text="Connect", font=("Arial", 14, "bold"),
+		bg="#2196F3", fg="white", activebackground="#1565C0", relief="flat", bd=0,
 		command=do_connect,
 	)
-	connect_btn.pack(pady=2, ipadx=16, ipady=6)
+	connect_btn.pack(side="left", ipadx=16, ipady=6)
 
-	# ── Native on-screen keyboard ─────────────────────────────────────────────
-	kbd_frame = tk.Frame(wifi_frame, bg="#222")
+	# ── On-screen keyboard (password frame only) ──────────────────────────────
+	kbd_frame = tk.Frame(pwd_frame, bg="#222")
 	kbd_frame.pack(side="bottom", fill="x")
 
-	def _kfocus():
-		w = root.focus_get()
-		return w if w in (ssid_entry, pw_entry) else None
-
 	def _kpress(ch):
-		w = _kfocus()
-		if not w:
-			ssid_entry.focus_force()
-			w = ssid_entry
 		c = ch.upper() if _kbd_shift[0] else ch
-		w.insert(tk.INSERT, c)
+		pw_entry.insert(tk.INSERT, c)
 		if _kbd_shift[0]:
 			_kbd_shift[0] = False
 			_kbuild()
 
 	def _kback():
-		w = _kfocus()
-		if not w: return
-		pos = w.index(tk.INSERT)
+		pos = pw_entry.index(tk.INSERT)
 		if pos > 0:
-			w.delete(pos - 1)
+			pw_entry.delete(pos - 1)
 
 	def _kspace():
-		w = _kfocus()
-		if not w:
-			ssid_entry.focus_force()
-			w = ssid_entry
-		w.insert(tk.INSERT, ' ')
+		pw_entry.insert(tk.INSERT, ' ')
 
 	def _kbuild():
 		for child in kbd_frame.winfo_children():
@@ -473,12 +549,12 @@ if __name__ == "__main__":
 
 	_kbuild()
 
+	# ── Startup ───────────────────────────────────────────────────────────────
 	if _is_connected():
 		root.after(0, _show_camera)
 	else:
-		wifi_frame.tkraise()
-		if _saved_ssid:
-			root.after(500, do_connect)
+		net_list_frame.tkraise()
+		Thread(target=_scan_networks, daemon=True).start()
 
 	# ── Touch / physical button listeners ─────────────────────────────────────
 	def _find_touch_device():
