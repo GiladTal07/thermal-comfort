@@ -107,6 +107,9 @@ if __name__ == "__main__":
 				time.sleep(0.5)
 				capture_data()
 				archive = _archive_capture()
+				if not is_connected():
+					root.after(0, lambda: btn.config(bg="#ff9800", text="Saved — will send when online"))
+					return
 				root.after(0, lambda: btn.config(text="Analysing..."))
 				run(DATA_DIR)
 				shutil.rmtree(archive, ignore_errors=True)
@@ -123,6 +126,7 @@ if __name__ == "__main__":
 				root.after(3000, lambda: btn.config(
 					state="normal", bg="#2196F3", text="CAPTURE"
 				))
+				root.after(3500, _flush_queue)
 
 		Thread(target=work, daemon=True).start()
 
@@ -212,7 +216,7 @@ if __name__ == "__main__":
 			w.destroy()
 		if not networks:
 			tk.Label(net_scroll_frame, text="No networks found.", fg="#888888",
-				bg="#1a1a1a", font=("Arial", 14)).pack(pady=20)
+				bg="#1a1a1a", font=("Arial", 24)).pack(pady=20)
 			return
 		for ssid in networks:
 			is_known = ssid in known
@@ -235,10 +239,18 @@ if __name__ == "__main__":
 		root.after(0, lambda: scan_status.config(text=""))
 		root.after(0, lambda: _populate_networks(networks, known))
 
-	tk.Button(net_list_frame, text="↻  Refresh", font=("Arial", 16, "bold"),
+	net_btn_row = tk.Frame(net_list_frame, bg="#1a1a1a")
+	net_btn_row.pack(pady=(0, 6), padx=20, fill="x")
+
+	tk.Button(net_btn_row, text="↻  Refresh", font=("Arial", 16, "bold"),
 		bg="#333", fg="white", activebackground="#555", relief="flat", bd=0,
 		command=lambda: Thread(target=_do_scan, daemon=True).start()
-	).pack(pady=(0, 6), ipadx=20, ipady=10, padx=20, fill="x")
+	).pack(side="left", expand=True, fill="both", ipadx=10, ipady=10, padx=(0, 6))
+
+	tk.Button(net_btn_row, text="Work Offline", font=("Arial", 16, "bold"),
+		bg="#555", fg="white", activebackground="#444", relief="flat", bd=0,
+		command=_show_camera,
+	).pack(side="left", expand=True, fill="both", ipadx=10, ipady=10)
 
 	# ── Password frame ────────────────────────────────────────────────────────
 	pwd_frame = tk.Frame(root, bg="#1a1a1a")
@@ -355,7 +367,7 @@ if __name__ == "__main__":
 	tk.Label(offline_frame, text="No Internet Connection",
 		fg="white", bg="#1a1a1a", font=("Arial", 20, "bold")).pack(pady=(40, 8))
 	tk.Label(offline_frame, text="How would you like to continue?",
-		fg="#888888", bg="#1a1a1a", font=("Arial", 14)).pack(pady=(0, 30))
+		fg="#888888", bg="#1a1a1a", font=("Arial", 18)).pack(pady=(0, 30))
 
 	def _go_to_networks():
 		net_list_frame.tkraise()
