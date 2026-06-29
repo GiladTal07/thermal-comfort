@@ -348,12 +348,36 @@ if __name__ == "__main__":
 
 	_kbuild()
 
+	# ── Offline choice frame ──────────────────────────────────────────────────
+	offline_frame = tk.Frame(root, bg="#1a1a1a")
+	offline_frame.place(x=0, y=0, width=_sw, height=_sh)
+
+	tk.Label(offline_frame, text="No Internet Connection",
+		fg="white", bg="#1a1a1a", font=("Arial", 20, "bold")).pack(pady=(40, 8))
+	tk.Label(offline_frame, text="How would you like to continue?",
+		fg="#888888", bg="#1a1a1a", font=("Arial", 14)).pack(pady=(0, 30))
+
+	def _go_to_networks():
+		net_list_frame.tkraise()
+		Thread(target=_do_scan, daemon=True).start()
+
+	tk.Button(offline_frame, text="Connect to a Network",
+		font=("Arial", 18, "bold"), bg="#2196F3", fg="white",
+		activebackground="#1565C0", relief="flat", bd=0,
+		command=_go_to_networks,
+	).pack(ipadx=24, ipady=14, pady=(0, 14), padx=40, fill="x")
+
+	tk.Button(offline_frame, text="Work Offline",
+		font=("Arial", 18, "bold"), bg="#555", fg="white",
+		activebackground="#444", relief="flat", bd=0,
+		command=_show_camera,
+	).pack(ipadx=24, ipady=14, padx=40, fill="x")
+
 	# ── Startup ───────────────────────────────────────────────────────────────
 	if is_connected():
 		root.after(0, _show_camera)
 	else:
-		net_list_frame.tkraise()
-		Thread(target=_do_scan, daemon=True).start()
+		offline_frame.tkraise()
 
 	# ── Touch listener ────────────────────────────────────────────────────────
 	def _find_touch_device():
