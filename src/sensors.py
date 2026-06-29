@@ -164,7 +164,7 @@ def read_bmm150():
     if raw_y & 0x1000:
         raw_y -= 0x2000
     deg = math.degrees(math.atan2(-raw_y, raw_x))
-    return round((deg) % 360, 1)
+    return round(deg % 360, 1)
 
 if __name__ == '__main__':
     print(read_sensor_values())

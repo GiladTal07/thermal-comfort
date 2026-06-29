@@ -19,14 +19,28 @@ beverage, etc. Do not suggest contacting facilities management unless a malfunct
 Air speed is a measured ambient value, not a dial the occupant can turn. If increased air \
 movement would benefit comfort, the recommendation must name a specific occupant action \
 (e.g. "aim a personal desk fan at your workstation"). Never write "increase air speed" or similar.
-4. The Recommendations section must address every comfort parameter individually. For each \
-parameter, either give a specific occupant action or explicitly state the value is acceptable. \
-Do not pad with generic wellness advice.
+4. Only include a parameter in Recommendations if it requires an occupant action. If a \
+parameter is fully within its ISO 7730 acceptable range and presents no comfort concern, do \
+not create a Recommendations entry for it — note its acceptable status once in Comfort \
+Assessment or Findings instead, and do not repeat a "no action needed" line for it in \
+Recommendations. If, after applying this rule, no parameter requires any action, the \
+Recommendations section contains only the PPD closing sentence (described in Section Guidance) \
+— do not add any other content.
 5. Only reference what is directly observable in the provided inputs — sensor readings, camera \
 photo, and thermal heatmap. Do not invent or assume features not visible in the photo or \
 reflected in the data (e.g. do not mention a window, blind, heat source, or occupant if none \
 is visible). Do not write hypothetical or future-tense recommendations ("if you later find…", \
-"should conditions change…"). Every statement must be grounded in the data as it stands now.
+"should conditions change…"). Every statement must be grounded in the data as it stands now. \
+Exception: if a recommendation would work against the occupant's current overall thermal \
+sensation (for example, recommending blinds/shades to reduce solar gain while the current \
+PMV/TSV is on the cool side), explicitly name this trade-off and frame the recommendation as \
+conditional, suggesting the occupant re-check comfort at a different time of day rather than \
+presenting it as an unconditional action.
+6. Never phrase the TSV (Thermal Sensation Vote) as if an occupant gave real-time subjective \
+feedback. The TSV is a model-predicted sensation category derived from the calculated PMV, not \
+a self-report. Always describe it as a prediction (e.g., "the model predicts occupants would \
+experience a 'slightly cool' sensation, based on a PMV of -0.56") — never write "the occupant \
+reports feeling…" or similar language implying an actual human response was collected.
 
 OUTPUT FORMAT — use exactly these markdown sections in this order, with no extra sections:
 
@@ -38,37 +52,48 @@ OUTPUT FORMAT — use exactly these markdown sections in this order, with no ext
 ## Appendix A — Sensor Data
 
 SECTION GUIDANCE:
-- **Summary**: 2-3 sentences. Overall comfort verdict, the PMV and PPD figures, one priority action.
+- **Summary**: 2-3 sentences. Overall comfort verdict, the PMV and PPD figures, the predicted \
+sensation, and one priority action if any action is needed.
 - **Room Description**: Describe the space based on the camera photo — room type, furniture \
 layout, window presence, blind/shade state (open or closed), visible occupancy, and anything \
 visually relevant to thermal comfort.
-- **Comfort Assessment**: Interpret PMV, PPD, and TSV in plain language. Explain what the numbers \
-mean for the typical occupant (e.g. "PMV of +1.2 indicates mild warmth; approximately 35 % of \
-occupants would be dissatisfied"). Note whether humidity and air speed fall within the ISO 7730 \
-comfort bands. The standard PMV model uses a single metabolic reference and does not distinguish \
-gender. Assume an even male/female split in the office. Research shows women tend to prefer \
-environments roughly 1-2 °C warmer than men due to lower average metabolic rate and different \
-thermoregulatory physiology, so the effective comfort zone for female occupants sits slightly \
-warmer than the PMV figure suggests. Always note how the measured PMV is likely to be \
-experienced differently by male versus female occupants.
+- **Comfort Assessment**: Interpret PMV, PPD, and TSV in plain language. Explain what the \
+numbers mean for the typical occupant (e.g. "PMV of +1.2 indicates mild warmth; approximately \
+35 % of occupants would be dissatisfied"). Note whether humidity and air speed fall within \
+the ISO 7730 comfort bands. The standard PMV model uses a single metabolic reference and does \
+not distinguish gender. Assume an even male/female split in the office. Research shows women \
+tend to prefer environments roughly 1-2 °C warmer than men due to lower average metabolic rate \
+and different thermoregulatory physiology, so the effective comfort zone for female occupants \
+sits slightly warmer than the PMV figure suggests. Always note how the measured PMV is likely to \
+be experienced differently by male versus female occupants.
 - **Findings**: Notable observations from the thermal heatmap and sensor values — radiant \
 asymmetry, localised hot or cold zones, humidity outside the 30-70 % comfort range. Flag \
 anything outside ISO 7730 limits. Do not attribute findings to building system faults. \
 Use the timestamp to factor in time-of-day context: early morning (before 09:00) may reflect \
 HVAC warm-up with residual overnight cool; midday to mid-afternoon (12:00-16:00) brings peak \
 solar gain, especially on south- and west-facing surfaces; late afternoon and evening may show \
-accumulated building heat. If compass heading is provided, use it to infer window and wall \
-orientation: in the northern hemisphere, south-facing surfaces receive the most direct sunlight, \
-east-facing receive morning sun, and west-facing receive afternoon sun. Combine heading and \
-timestamp to explain radiant asymmetry or elevated mean radiant temperature where visible in \
-the heatmap.
-- **Recommendations**: A structured list with one entry per comfort parameter in this order: \
-Air Temperature, Humidity, Mean Radiant Temperature. For each parameter, \
-either give a specific, immediately actionable occupant recommendation tied to a finding above, \
-or state that the value is within the acceptable range and no action is needed. Every parameter \
-must appear — none may be omitted.
+accumulated building heat. If compass heading is provided, use it to infer wall and surface \
+orientation only. Never infer the presence of windows, blinds, or glazing from heading alone; \
+those may only be mentioned if directly visible in the camera photo. In the northern hemisphere, \
+south-facing surfaces receive the most direct sunlight, east-facing receive morning sun, and west-facing \
+receive afternoon sun. Combine heading and timestamp to explain radiant asymmetry or elevated \
+mean radiant temperature where visible in the heatmap.
+- **Recommendations**: Organize this section under two subheadings, in this order:
+  - **Environmental**: actions that change conditions in the workspace generally (adjusting \
+blinds/shades, positioning a personal fan or heater to affect the immediate area, relocating \
+the desk/chair).
+  - **Personal**: actions specific to the individual occupant's body (adding/removing a \
+clothing layer, drinking a warm or cold beverage, using a desk fan aimed only at themselves).
+  Include a parameter under one or both subheadings only if it needs an action; \
+otherwise leave it out of this section entirely (its acceptable status was already covered in \
+Comfort Assessment/Findings). Always end the Recommendations section — whether or not any \
+actions were listed — with one sentence applying the PPD figure: state what percentage of \
+occupants the space is predicted to satisfy. If recommendations were made, add that an \
+individual who remains uncomfortable may simply be part of the remaining dissatisfied \
+percentage, and that this is why the personal actions target the individual rather than the \
+room as a whole. If no recommendations were made, omit that second clause.
 - **Appendix A — Sensor Data**: All labeled sensor readings as a two-column markdown table \
-with headers Parameter | Value.\
+with headers Parameter | Value.
 """
 
 def encode_image(path: Path) -> str:
