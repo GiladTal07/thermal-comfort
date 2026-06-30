@@ -113,10 +113,8 @@ if __name__ == "__main__":
 				root.after(0, lambda: btn.config(bg="#4caf50", text="Email sent!"))
 			except Exception as e:
 				print(f"Error: {e}")
-				if archive and archive.exists():
-					root.after(0, lambda: btn.config(bg="#ff9800", text="Saved — will send when online"))
-				else:
-					root.after(0, lambda: btn.config(text="Error — check logs"))
+				saved = archive and archive.exists()
+				root.after(0, lambda: btn.config(bg="#ff9800" if saved else "#555", text="Saved — will send when online" if saved else "Error — check logs"))
 			finally:
 				picam2 = _make_picam()
 				running = False

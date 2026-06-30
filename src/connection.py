@@ -11,12 +11,11 @@ def is_connected() -> bool:
 		return False
 
 def connect_saved(ssid: str) -> tuple[bool, str]:
-	"""Connects to an existing saved nmcli connection profile by SSID."""
 	result = subprocess.run(
 		['sudo', 'nmcli', 'connection', 'up', ssid],
 		capture_output=True, text=True, timeout=30
 	)
-	if result.returncode == 0:
+	if result.returncode == 0 or is_connected():
 		return True, f"Connected to {ssid}"
 	error = result.stderr.strip() or result.stdout.strip() or "Connection failed"
 	return False, error
@@ -26,7 +25,7 @@ def connect_to_hotspot(ssid: str, password: str) -> tuple[bool, str]:
 	if password:
 		cmd += ['password', password]
 	result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-	if result.returncode == 0:
+	if result.returncode == 0 or is_connected():
 		return True, f"Connected to {ssid}"
 	error = result.stderr.strip() or result.stdout.strip() or "Connection failed"
 	return False, error
