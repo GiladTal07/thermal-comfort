@@ -1,14 +1,4 @@
-import json
 import subprocess
-from pathlib import Path
-
-_WIFI_CREDS = Path(__file__).parent.parent / "wifi_creds.json"
-
-def save_wifi_creds(ssid: str, password: str) -> None:
-	try:
-		_WIFI_CREDS.write_text(json.dumps({"ssid": ssid, "password": password}))
-	except Exception:
-		pass
 
 def is_connected() -> bool:
 	try:

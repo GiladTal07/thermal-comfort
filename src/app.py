@@ -1,7 +1,6 @@
-import re
 import shutil
-import subprocess
 import time
+from screeninfo import get_monitors
 from pathlib import Path
 from threading import Thread
 from picamera2 import Picamera2
@@ -13,36 +12,34 @@ from readings import capture_data, DATA_DIR
 from llm import run
 from connection import (
 	is_connected, connect_saved, connect_to_hotspot,
-	save_wifi_creds, get_known_ssids, scan_nearby_ssids,
+	get_known_ssids, scan_nearby_ssids,
 )
 
-_ARCHIVE_DIR = Path(DATA_DIR).parent / "data_archive"
+ARCHIVE_DIR = Path(DATA_DIR).parent / "data_archive"
 
-def _screen_geometry():
+def screen_dimensions(): # Returns the dimensions of the smaller screen
 	"""Prefers a non-primary screen when two are connected, otherwise uses whichever is available."""
 	try:
-		out = subprocess.check_output(['xrandr', '--query'], text=True)
-		screens = []
-		for line in out.splitlines():
-			if ' connected ' in line:
-				m = re.search(r'(\d+)x(\d+)\+(\d+)\+(\d+)', line)
-				if m:
-					w, h, x, y = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
-					screens.append((w, h, x, y))
-		if not screens:
-			raise ValueError("no screens found")
-		if len(screens) == 1:
-			w, h, x, y = screens[0]
+		monitors = get_monitors()
+		if not monitors:
+			raise ValueError("no monitors found")
+
+		if len(monitors) == 1:
+			monitor = monitors[0]
 		else:
-			secondary = [s for s in screens if s[2] != 0 or s[3] != 0]
-			w, h, x, y = secondary[0] if secondary else screens[-1]
-		return f"{w}x{h}+{x}+{y}", w, h, x, y
+			monitor = monitors[-1]
+			for m in monitors:
+				if (m.x, m.y) != (0, 0):
+					monitor = m
+					break
+
+		return f"{monitor.width}x{monitor.height}+{monitor.x}+{monitor.y}", monitor.width, monitor.height, monitor.x, monitor.y
 	except Exception:
 		return "1024x768+0+0", 1024, 768, 0, 0
 
-def _archive_capture() -> Path:
+def archive_capture() -> Path:
 	ts = time.strftime('%Y-%m-%d_%H-%M-%S')
-	dest = _ARCHIVE_DIR / ts
+	dest = ARCHIVE_DIR / ts
 	dest.mkdir(parents=True, exist_ok=True)
 	for fname in ('data.txt', 'image.jpg', 'thermal.png'):
 		src = Path(DATA_DIR) / fname
@@ -51,54 +48,54 @@ def _archive_capture() -> Path:
 	return dest
 
 if __name__ == "__main__":
-	_running = False
-	_photo = None
+	running = False
+	photo = None
 	picam2 = None
 
-	_geometry, _sw, _sh, _sx, _sy = _screen_geometry()
-	print(f"Target screen: {_geometry}")
+	geometry, sw, sh, sx, sy = screen_dimensions()
+	print(f"Target screen: {geometry}")
 
 	def _make_picam():
 		cam = Picamera2()
 		cam.configure(cam.create_preview_configuration(
-			main={"size": (_sw, _sh), "format": "RGB888"}
+			main={"size": (sw, sh), "format": "RGB888"}
 		))
 		cam.start()
 		return cam
 
 	root = tk.Tk()
 	root.overrideredirect(True)
-	root.geometry(_geometry)
+	root.geometry(geometry)
 	root.configure(bg="black")
 
 	# ── Camera frame ──────────────────────────────────────────────────────────
 	camera_frame = tk.Frame(root, bg="black")
-	camera_frame.place(x=0, y=0, width=_sw, height=_sh)
+	camera_frame.place(x=0, y=0, width=sw, height=sh)
 
 	preview_label = tk.Label(camera_frame, bg="black")
-	preview_label.place(x=0, y=0, width=_sw, height=_sh)
+	preview_label.place(x=0, y=0, width=sw, height=sh)
 
 	def update_preview():
-		global _photo
-		if not _running and picam2 is not None:
+		global photo
+		if not running and picam2 is not None:
 			try:
 				frame = picam2.capture_array()
-				img = Image.fromarray(frame).rotate(180)
-				_photo = ImageTk.PhotoImage(img)
-				preview_label.config(image=_photo)
+				img = Image.fromarray(frame[:, :, ::-1]).rotate(180)
+				photo = ImageTk.PhotoImage(img)
+				preview_label.config(image=photo)
 			except Exception:
 				pass
 		root.after(50, update_preview)
 
 	def trigger():
-		global _running, picam2
-		if picam2 is None or _running:
+		global running, picam2
+		if picam2 is None or running:
 			return
-		_running = True
+		running = True
 		btn.config(state="disabled", bg="#555", text="Processing...")
 
 		def work():
-			global _running, picam2
+			global running, picam2
 			archive = None
 			try:
 				root.after(0, lambda: btn.config(text="Taking photo..."))
@@ -106,7 +103,7 @@ if __name__ == "__main__":
 				picam2.close()
 				time.sleep(0.5)
 				capture_data()
-				archive = _archive_capture()
+				archive = archive_capture()
 				if not is_connected():
 					root.after(0, lambda: btn.config(bg="#ff9800", text="Saved — will send when online"))
 					return
@@ -122,11 +119,11 @@ if __name__ == "__main__":
 					root.after(0, lambda: btn.config(text="Error — check logs"))
 			finally:
 				picam2 = _make_picam()
-				_running = False
+				running = False
 				root.after(3000, lambda: btn.config(
 					state="normal", bg="#2196F3", text="CAPTURE"
 				))
-				root.after(3500, _flush_queue)
+				root.after(3500, flush_queue)
 
 		Thread(target=work, daemon=True).start()
 
@@ -145,14 +142,14 @@ if __name__ == "__main__":
 	btn.place(relx=0.5, rely=1.0, relwidth=0.6, height=90, anchor="s", y=-15)
 
 	# ── Network list frame ────────────────────────────────────────────────────
-	_kbd_shift = [False]
-	_kbd_num = [False]
-	_KBD_ALPHA = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
-	_KBD_NUM   = ['1234567890', '!@#$%&*-_+', '.,:;\'"()/\\']
-	_selected_ssid = [None]
+	kbd_shift = [False]
+	kbd_num = [False]
+	KBD_ALPHA = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
+	KBD_NUM   = ['1234567890', '!@#$%&*-_+', '.,:;\'"()/\\']
+	selected_ssid = [None]
 
 	net_list_frame = tk.Frame(root, bg="#1a1a1a")
-	net_list_frame.place(x=0, y=0, width=_sw, height=_sh)
+	net_list_frame.place(x=0, y=0, width=sw, height=sh)
 
 	tk.Label(net_list_frame, text="Select a Network", fg="white", bg="#1a1a1a",
 		font=("Arial", 20, "bold")).pack(pady=(12, 4))
@@ -164,11 +161,11 @@ if __name__ == "__main__":
 	net_scroll_frame = tk.Frame(net_list_frame, bg="#1a1a1a")
 	net_scroll_frame.pack(fill="both", expand=True, padx=20, pady=4)
 
-	def _flush_queue():
-		folders = sorted(p.parent for p in _ARCHIVE_DIR.glob("*/data.txt"))
-		if not folders or _running:
+	def flush_queue():
+		folders = sorted(p.parent for p in ARCHIVE_DIR.glob("*/data.txt"))
+		if not folders or running:
 			return
-		def _send():
+		def send():
 			for folder in folders:
 				if not is_connected():
 					break
@@ -185,14 +182,14 @@ if __name__ == "__main__":
 			root.after(0, lambda: btn.config(
 				state="normal", bg="#2196F3", text="CAPTURE"
 			))
-		Thread(target=_send, daemon=True).start()
+		Thread(target=send, daemon=True).start()
 
-	def _show_camera():
+	def show_camera():
 		global picam2
 		picam2 = _make_picam()
 		camera_frame.tkraise()
 		update_preview()
-		root.after(3000, _flush_queue)
+		root.after(3000, flush_queue)
 
 	def _on_network_tap(ssid, known):
 		if known:
@@ -200,12 +197,12 @@ if __name__ == "__main__":
 			def _do():
 				success, msg = connect_saved(ssid)
 				if success:
-					root.after(0, _show_camera)
+					root.after(0, show_camera)
 				else:
 					root.after(0, lambda: scan_status.config(text=f"Failed: {msg}", fg="#f44336"))
 			Thread(target=_do, daemon=True).start()
 		else:
-			_selected_ssid[0] = ssid
+			selected_ssid[0] = ssid
 			ssid_label.config(text=ssid)
 			pw_var.set("")
 			pw_status.config(text="")
@@ -251,12 +248,12 @@ if __name__ == "__main__":
 
 	tk.Button(net_btn_row, text="Work Offline", font=("Arial", 16, "bold"),
 		bg="#555", fg="white", activebackground="#444", relief="flat", bd=0,
-		command=_show_camera,
+		command=show_camera,
 	).pack(side="left", expand=True, fill="both", ipadx=10, ipady=10)
 
 	# ── Password frame ────────────────────────────────────────────────────────
 	pwd_frame = tk.Frame(root, bg="#1a1a1a")
-	pwd_frame.place(x=0, y=0, width=_sw, height=_sh)
+	pwd_frame.place(x=0, y=0, width=sw, height=sh)
 
 	tk.Label(pwd_frame, text="Enter Password", fg="white", bg="#1a1a1a",
 		font=("Arial", 20, "bold")).pack(pady=(12, 4))
@@ -276,15 +273,14 @@ if __name__ == "__main__":
 	pw_status.pack(pady=(0, 2))
 
 	def do_connect():
-		ssid = _selected_ssid[0]
+		ssid = selected_ssid[0]
 		pw = pw_var.get().strip()
 		pw_status.config(text="")
 		connect_btn.config(state="disabled", text="Connecting...")
 		def work():
 			success, msg = connect_to_hotspot(ssid, pw)
 			if success:
-				save_wifi_creds(ssid, pw)
-				root.after(0, _show_camera)
+				root.after(0, show_camera)
 			else:
 				root.after(0, lambda: (
 					connect_btn.config(state="normal", text="Connect"),
@@ -311,10 +307,10 @@ if __name__ == "__main__":
 	kbd_frame.pack(side="bottom", fill="x")
 
 	def _kpress(ch):
-		c = ch.upper() if _kbd_shift[0] else ch
+		c = ch.upper() if kbd_shift[0] else ch
 		pw_entry.insert(tk.INSERT, c)
-		if _kbd_shift[0]:
-			_kbd_shift[0] = False
+		if kbd_shift[0]:
+			kbd_shift[0] = False
 			_kbuild()
 
 	def _kback():
@@ -328,14 +324,14 @@ if __name__ == "__main__":
 	def _kbuild():
 		for child in kbd_frame.winfo_children():
 			child.destroy()
-		rows = _KBD_NUM if _kbd_num[0] else _KBD_ALPHA
+		rows = KBD_NUM if kbd_num[0] else KBD_ALPHA
 		kfont = ("Arial", 22, "bold")
-		kpad = max(10, _sh // 32)
+		kpad = max(10, sh // 32)
 		for row in rows:
 			rf = tk.Frame(kbd_frame, bg="#222")
 			rf.pack(fill="x", pady=1, padx=2)
 			for ch in row:
-				label = ch.upper() if (_kbd_shift[0] and not _kbd_num[0]) else ch
+				label = ch.upper() if (kbd_shift[0] and not kbd_num[0]) else ch
 				tk.Button(rf, text=label, font=kfont,
 					bg="#3a3a3a", fg="white", activebackground="#555",
 					relief="flat", bd=0,
@@ -343,15 +339,15 @@ if __name__ == "__main__":
 				).pack(side="left", expand=True, fill="both", padx=1, ipady=kpad)
 		bf = tk.Frame(kbd_frame, bg="#222")
 		bf.pack(fill="x", pady=1, padx=2)
-		tk.Button(bf, text="ABC" if _kbd_num[0] else "?123", font=kfont,
+		tk.Button(bf, text="ABC" if kbd_num[0] else "?123", font=kfont,
 			bg="#555", fg="white", relief="flat", bd=0,
-			command=lambda: (_kbd_num.__setitem__(0, not _kbd_num[0]), _kbuild())
+			command=lambda: (kbd_num.__setitem__(0, not kbd_num[0]), _kbuild())
 		).pack(side="left", fill="both", padx=1, ipady=kpad)
-		if not _kbd_num[0]:
+		if not kbd_num[0]:
 			tk.Button(bf, text="⇧", font=kfont,
-				bg="#2196F3" if _kbd_shift[0] else "#555", fg="white",
+				bg="#2196F3" if kbd_shift[0] else "#555", fg="white",
 				relief="flat", bd=0,
-				command=lambda: (_kbd_shift.__setitem__(0, not _kbd_shift[0]), _kbuild())
+				command=lambda: (kbd_shift.__setitem__(0, not kbd_shift[0]), _kbuild())
 			).pack(side="left", fill="both", padx=1, ipady=kpad)
 		tk.Button(bf, text="space", font=kfont, bg="#3a3a3a", fg="white",
 			relief="flat", bd=0, command=_kspace
@@ -364,7 +360,7 @@ if __name__ == "__main__":
 
 	# ── Offline choice frame ──────────────────────────────────────────────────
 	offline_frame = tk.Frame(root, bg="#1a1a1a")
-	offline_frame.place(x=0, y=0, width=_sw, height=_sh)
+	offline_frame.place(x=0, y=0, width=sw, height=sh)
 
 	tk.Label(offline_frame, text="No Internet Connection",
 		fg="white", bg="#1a1a1a", font=("Arial", 20, "bold")).pack(pady=(40, 8))
@@ -384,23 +380,23 @@ if __name__ == "__main__":
 	tk.Button(offline_frame, text="Work Offline",
 		font=("Arial", 18, "bold"), bg="#555", fg="white",
 		activebackground="#444", relief="flat", bd=0,
-		command=_show_camera,
+		command=show_camera,
 	).pack(ipadx=24, ipady=14, padx=40, fill="x")
 
 	# ── Startup ───────────────────────────────────────────────────────────────
 	if is_connected():
-		root.after(0, _show_camera)
+		root.after(0, show_camera)
 	else:
 		offline_frame.tkraise()
 
 	# ── Connectivity poll ────────────────────────────────────────────────────
-	_was_connected = [is_connected()]
+	was_connected = [is_connected()]
 
 	def _poll_connection():
 		now = is_connected()
-		if now and not _was_connected[0]:
-			_flush_queue()
-		_was_connected[0] = now
+		if now and not was_connected[0]:
+			flush_queue()
+		was_connected[0] = now
 		root.after(15000, _poll_connection)
 
 	root.after(15000, _poll_connection)
@@ -417,7 +413,7 @@ if __name__ == "__main__":
 				pass
 		return None
 
-	def _touch_thread():
+	def touch_thread():
 		dev = None
 		while dev is None:
 			dev = _find_touch_device()
@@ -428,7 +424,7 @@ if __name__ == "__main__":
 			if event.type == ecodes.EV_KEY and event.code == ecodes.BTN_TOUCH and event.value == 1:
 				root.after(0, trigger)
 
-	Thread(target=_touch_thread, daemon=True).start()
+	Thread(target=touch_thread, daemon=True).start()
 
 	root.bind("<Escape>", lambda e: root.destroy())
 	root.mainloop()
