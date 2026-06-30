@@ -55,7 +55,7 @@ if __name__ == "__main__":
 	geometry, sw, sh, sx, sy = screen_dimensions()
 	print(f"Target screen: {geometry}")
 
-	def _make_picam():
+	def make_picam():
 		cam = Picamera2()
 		cam.configure(cam.create_preview_configuration(
 			main={"size": (sw, sh), "format": "RGB888"}
@@ -116,7 +116,7 @@ if __name__ == "__main__":
 				saved = archive and archive.exists()
 				root.after(0, lambda: btn.config(bg="#ff9800" if saved else "#555", text="Saved — will send when online" if saved else "Error — check logs"))
 			finally:
-				picam2 = _make_picam()
+				picam2 = make_picam()
 				running = False
 				root.after(3000, lambda: btn.config(
 					state="normal", bg="#2196F3", text="CAPTURE"
@@ -184,21 +184,21 @@ if __name__ == "__main__":
 
 	def show_camera():
 		global picam2
-		picam2 = _make_picam()
+		picam2 = make_picam()
 		camera_frame.tkraise()
 		update_preview()
 		root.after(3000, flush_queue)
 
-	def _on_network_tap(ssid, known):
+	def on_network_tap(ssid, known):
 		if known:
 			scan_status.config(text=f"Connecting to {ssid}...", fg="#888888")
-			def _do():
+			def do():
 				success, msg = connect_saved(ssid)
 				if success:
 					root.after(0, show_camera)
 				else:
 					root.after(0, lambda: scan_status.config(text=f"Failed: {msg}", fg="#f44336"))
-			Thread(target=_do, daemon=True).start()
+			Thread(target=do, daemon=True).start()
 		else:
 			selected_ssid[0] = ssid
 			ssid_label.config(text=ssid)
@@ -208,7 +208,7 @@ if __name__ == "__main__":
 			pwd_frame.tkraise()
 			pw_entry.focus_force()
 
-	def _populate_networks(networks, known):
+	def populate_networks(networks, known):
 		for w in net_scroll_frame.winfo_children():
 			w.destroy()
 		if not networks:
@@ -224,24 +224,48 @@ if __name__ == "__main__":
 			if is_known:
 				tk.Label(row, text="saved", fg="#4caf50", bg="#2a2a2a",
 					font=("Arial", 12)).pack(side="right", padx=12)
-			row.bind("<Button-1>", lambda e, s=ssid, k=is_known: _on_network_tap(s, k))
+			row.bind("<Button-1>", lambda e, s=ssid, k=is_known: on_network_tap(s, k))
 			for child in row.winfo_children():
-				child.bind("<Button-1>", lambda e, s=ssid, k=is_known: _on_network_tap(s, k))
+				child.bind("<Button-1>", lambda e, s=ssid, k=is_known: on_network_tap(s, k))
 
-	def _do_scan():
+	def do_scan():
 		root.after(0, lambda: scan_status.config(text="Scanning...", fg="#888888"))
 		networks = scan_nearby_ssids()
 		known = get_known_ssids()
 		networks.sort(key=lambda s: (0 if s in known else 1, s))
 		root.after(0, lambda: scan_status.config(text=""))
-		root.after(0, lambda: _populate_networks(networks, known))
+		root.after(0, lambda: populate_networks(networks, known))
+
+	def change_wifi():
+		global picam2
+		if picam2 is not None:
+			try:
+				picam2.stop()
+				picam2.close()
+			except Exception:
+				pass
+			picam2 = None
+		net_list_frame.tkraise()
+		Thread(target=do_scan, daemon=True).start()
+
+	tk.Button(
+		camera_frame,
+		text="Wi-Fi",
+		font=("Arial", 13),
+		bg="#333",
+		fg="white",
+		activebackground="#555",
+		relief="flat",
+		bd=0,
+		command=change_wifi,
+	).place(relx=1.0, x=-10, y=10, width=70, height=36, anchor="ne")
 
 	net_btn_row = tk.Frame(net_list_frame, bg="#1a1a1a")
 	net_btn_row.pack(pady=(0, 6), padx=20, fill="x")
 
 	tk.Button(net_btn_row, text="↻  Refresh", font=("Arial", 16, "bold"),
 		bg="#333", fg="white", activebackground="#555", relief="flat", bd=0,
-		command=lambda: Thread(target=_do_scan, daemon=True).start()
+		command=lambda: Thread(target=do_scan, daemon=True).start()
 	).pack(side="left", expand=True, fill="both", ipadx=10, ipady=10, padx=(0, 6))
 
 	tk.Button(net_btn_row, text="Work Offline", font=("Arial", 16, "bold"),
@@ -304,22 +328,22 @@ if __name__ == "__main__":
 	kbd_frame = tk.Frame(pwd_frame, bg="#222")
 	kbd_frame.pack(side="bottom", fill="x")
 
-	def _kpress(ch):
+	def kpress(ch):
 		c = ch.upper() if kbd_shift[0] else ch
 		pw_entry.insert(tk.INSERT, c)
 		if kbd_shift[0]:
 			kbd_shift[0] = False
-			_kbuild()
+			kbuild()
 
-	def _kback():
+	def kback():
 		pos = pw_entry.index(tk.INSERT)
 		if pos > 0:
 			pw_entry.delete(pos - 1)
 
-	def _kspace():
+	def kspace():
 		pw_entry.insert(tk.INSERT, ' ')
 
-	def _kbuild():
+	def kbuild():
 		for child in kbd_frame.winfo_children():
 			child.destroy()
 		rows = KBD_NUM if kbd_num[0] else KBD_ALPHA
@@ -333,28 +357,28 @@ if __name__ == "__main__":
 				tk.Button(rf, text=label, font=kfont,
 					bg="#3a3a3a", fg="white", activebackground="#555",
 					relief="flat", bd=0,
-					command=lambda c=ch: _kpress(c)
+					command=lambda c=ch: kpress(c)
 				).pack(side="left", expand=True, fill="both", padx=1, ipady=kpad)
 		bf = tk.Frame(kbd_frame, bg="#222")
 		bf.pack(fill="x", pady=1, padx=2)
 		tk.Button(bf, text="ABC" if kbd_num[0] else "?123", font=kfont,
 			bg="#555", fg="white", relief="flat", bd=0,
-			command=lambda: (kbd_num.__setitem__(0, not kbd_num[0]), _kbuild())
+			command=lambda: (kbd_num.__setitem__(0, not kbd_num[0]), kbuild())
 		).pack(side="left", fill="both", padx=1, ipady=kpad)
 		if not kbd_num[0]:
 			tk.Button(bf, text="⇧", font=kfont,
 				bg="#2196F3" if kbd_shift[0] else "#555", fg="white",
 				relief="flat", bd=0,
-				command=lambda: (kbd_shift.__setitem__(0, not kbd_shift[0]), _kbuild())
+				command=lambda: (kbd_shift.__setitem__(0, not kbd_shift[0]), kbuild())
 			).pack(side="left", fill="both", padx=1, ipady=kpad)
 		tk.Button(bf, text="space", font=kfont, bg="#3a3a3a", fg="white",
-			relief="flat", bd=0, command=_kspace
+			relief="flat", bd=0, command=kspace
 		).pack(side="left", expand=True, fill="both", padx=1, ipady=kpad)
 		tk.Button(bf, text="⌫", font=kfont, bg="#555", fg="white",
-			relief="flat", bd=0, command=_kback
+			relief="flat", bd=0, command=kback
 		).pack(side="left", fill="both", padx=1, ipady=kpad)
 
-	_kbuild()
+	kbuild()
 
 	# ── Offline choice frame ──────────────────────────────────────────────────
 	offline_frame = tk.Frame(root, bg="#1a1a1a")
@@ -365,14 +389,14 @@ if __name__ == "__main__":
 	tk.Label(offline_frame, text="How would you like to continue?",
 		fg="#888888", bg="#1a1a1a", font=("Arial", 18)).pack(pady=(0, 30))
 
-	def _go_to_networks():
+	def go_to_networks():
 		net_list_frame.tkraise()
-		Thread(target=_do_scan, daemon=True).start()
+		Thread(target=do_scan, daemon=True).start()
 
 	tk.Button(offline_frame, text="Connect to a Network",
 		font=("Arial", 18, "bold"), bg="#2196F3", fg="white",
 		activebackground="#1565C0", relief="flat", bd=0,
-		command=_go_to_networks,
+		command=go_to_networks,
 	).pack(ipadx=24, ipady=14, pady=(0, 14), padx=40, fill="x")
 
 	tk.Button(offline_frame, text="Work Offline",
@@ -390,17 +414,17 @@ if __name__ == "__main__":
 	# ── Connectivity poll ────────────────────────────────────────────────────
 	was_connected = [is_connected()]
 
-	def _poll_connection():
+	def poll_connection():
 		now = is_connected()
 		if now and not was_connected[0]:
 			flush_queue()
 		was_connected[0] = now
-		root.after(15000, _poll_connection)
+		root.after(15000, poll_connection)
 
-	root.after(15000, _poll_connection)
+	root.after(15000, poll_connection)
 
 	# ── Touch listener ────────────────────────────────────────────────────────
-	def _find_touch_device():
+	def find_touch_device():
 		for path in list_devices():
 			try:
 				dev = InputDevice(path)
@@ -414,7 +438,7 @@ if __name__ == "__main__":
 	def touch_thread():
 		dev = None
 		while dev is None:
-			dev = _find_touch_device()
+			dev = find_touch_device()
 			if dev is None:
 				time.sleep(2)
 		print(f"Touch device: {dev.name}")

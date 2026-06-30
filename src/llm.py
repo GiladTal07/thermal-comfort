@@ -133,10 +133,9 @@ def run(folder_path: str) -> None:
 	if not png_file.exists():
 		raise FileNotFoundError(f"thermal.png not found in {folder}")
 
-	client = anthropic.Anthropic()
 	output = []
 
-	with client.messages.stream(
+	with anthropic.Anthropic() as client, client.messages.stream(
 		model="claude-haiku-4-5",
 		max_tokens=4096,
 		system=SYSTEM_PROMPT,
@@ -179,8 +178,8 @@ def run(folder_path: str) -> None:
 		}],
 	) as stream:
 		for text in stream.text_stream:
-			print(text, end="", flush=True)
+			# print(text, end="", flush=True)
 			output.append(text)
 
-	print()
+	print("LLM output received.")
 	send_email("".join(output), jpg_file, png_file)
