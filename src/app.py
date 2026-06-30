@@ -75,6 +75,8 @@ if __name__ == "__main__":
 	preview_label = tk.Label(camera_frame, bg="black")
 	preview_label.place(x=0, y=0, width=sw, height=sh)
 
+	preview_active = [False]
+
 	def update_preview():
 		global photo
 		if not running and picam2 is not None:
@@ -85,7 +87,8 @@ if __name__ == "__main__":
 				preview_label.config(image=photo)
 			except Exception:
 				pass
-		root.after(50, update_preview)
+		if preview_active[0]:
+			root.after(50, update_preview)
 
 	def trigger():
 		global running, picam2
@@ -183,11 +186,19 @@ if __name__ == "__main__":
 		Thread(target=send, daemon=True).start()
 
 	def show_camera():
-		global picam2
-		picam2 = make_picam()
 		camera_frame.tkraise()
-		update_preview()
-		root.after(3000, flush_queue)
+		def init_cam():
+			global picam2
+			try:
+				time.sleep(1)
+				picam2 = make_picam()
+			except Exception as e:
+				print(f"Camera init failed: {e}")
+				return
+			preview_active[0] = True
+			root.after(0, update_preview)
+			root.after(3000, flush_queue)
+		Thread(target=init_cam, daemon=True).start()
 
 	def on_network_tap(ssid, known):
 		if known:
@@ -238,6 +249,7 @@ if __name__ == "__main__":
 
 	def change_wifi():
 		global picam2
+		preview_active[0] = False
 		if picam2 is not None:
 			try:
 				picam2.stop()
