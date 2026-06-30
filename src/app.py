@@ -186,6 +186,10 @@ if __name__ == "__main__":
 		Thread(target=send, daemon=True).start()
 
 	def show_camera():
+		if was_connected[0]:
+			wifi_btn.place_forget()
+		else:
+			wifi_btn.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-15, width=120, height=90)
 		camera_frame.tkraise()
 		def init_cam():
 			global picam2
@@ -206,6 +210,7 @@ if __name__ == "__main__":
 			def do():
 				success, msg = connect_saved(ssid)
 				if success:
+					was_connected[0] = True
 					root.after(0, show_camera)
 				else:
 					root.after(0, lambda: scan_status.config(text=f"Failed: {msg}", fg="#f44336"))
@@ -260,7 +265,7 @@ if __name__ == "__main__":
 		net_list_frame.tkraise()
 		Thread(target=do_scan, daemon=True).start()
 
-	tk.Button(
+	wifi_btn = tk.Button(
 		camera_frame,
 		text="Wi-Fi",
 		font=("Arial", 13),
@@ -270,7 +275,7 @@ if __name__ == "__main__":
 		relief="flat",
 		bd=0,
 		command=change_wifi,
-	).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-15, width=120, height=90)
+	)
 
 	net_btn_row = tk.Frame(net_list_frame, bg="#1a1a1a")
 	net_btn_row.pack(pady=(0, 6), padx=20, fill="x")
@@ -314,6 +319,7 @@ if __name__ == "__main__":
 		def work():
 			success, msg = connect_to_hotspot(ssid, pw)
 			if success:
+				was_connected[0] = True
 				root.after(0, show_camera)
 			else:
 				root.after(0, lambda: (
@@ -431,6 +437,10 @@ if __name__ == "__main__":
 		if now and not was_connected[0]:
 			flush_queue()
 		was_connected[0] = now
+		if now:
+			wifi_btn.place_forget()
+		else:
+			wifi_btn.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-15, width=120, height=90)
 		root.after(15000, poll_connection)
 
 	root.after(15000, poll_connection)
