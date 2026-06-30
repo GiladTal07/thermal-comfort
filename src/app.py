@@ -258,7 +258,7 @@ if __name__ == "__main__":
 		relief="flat",
 		bd=0,
 		command=change_wifi,
-	).place(relx=1.0, x=-10, y=10, width=70, height=36, anchor="ne")
+	).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-15, width=120, height=90)
 
 	net_btn_row = tk.Frame(net_list_frame, bg="#1a1a1a")
 	net_btn_row.pack(pady=(0, 6), padx=20, fill="x")
@@ -444,7 +444,12 @@ if __name__ == "__main__":
 		print(f"Touch device: {dev.name}")
 		for event in dev.read_loop():
 			if event.type == ecodes.EV_KEY and event.code == ecodes.BTN_TOUCH and event.value == 1:
-				root.after(0, trigger)
+				def on_touch():
+					px, py = root.winfo_pointerx(), root.winfo_pointery()
+					bx, by = btn.winfo_rootx(), btn.winfo_rooty()
+					if bx <= px <= bx + btn.winfo_width() and by <= py <= by + btn.winfo_height():
+						trigger()
+				root.after(0, on_touch)
 
 	Thread(target=touch_thread, daemon=True).start()
 
