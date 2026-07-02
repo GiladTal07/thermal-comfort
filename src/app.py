@@ -148,9 +148,8 @@ if __name__ == "__main__":
 				root.after(0, lambda: btn.config(bg="#ff9800", text="Sending..."))
 			except Exception as e:
 				print(f"Capture error: {e}")
-				root.after(0, lambda: btn.config(
-					state="normal", bg="#2196F3", text="CAPTURE"
-				))
+				root.after(0, lambda: btn.config(state="normal", bg="#2196F3", text="Error. Try again."))
+				root.after(3000, lambda: btn.config(bg="#2196F3", text="CAPTURE"))
 			finally:
 				picam2 = make_picam()
 				running = False
@@ -450,6 +449,7 @@ if __name__ == "__main__":
 			if sending[0]:
 				sending[0] = False
 				btn.config(state="normal", bg="#ff9800", text="Saved — will send when online")
+				root.after(3000, lambda: btn.config(bg="#2196F3", text="CAPTURE"))
 		root.after(15000, poll_connection)
 
 	root.after(15000, poll_connection)
@@ -468,6 +468,7 @@ if __name__ == "__main__":
 				root.after(3000, lambda: btn.config(bg="#2196F3", text="CAPTURE"))
 			elif msg["status"] == "error":
 				sending[0] = False
+				root.after(0, lambda: btn.config(bg="#2196F3", text="Error. Try again."))
 				btn.config(state="normal", bg="#ff9800", text=msg["detail"])
 				root.after(3000, lambda: btn.config(bg="#2196F3", text="CAPTURE"))
 		if not reader_thread.is_alive():

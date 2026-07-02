@@ -99,6 +99,10 @@ with headers Parameter | Value.
 def encode_image(path: Path) -> str:
 	return base64.standard_b64encode(path.read_bytes()).decode("utf-8")
 
+def cardinal(degrees: float) -> str:
+	directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+	return directions[round(degrees / 45) % 8]
+
 def parse_readings(text: str) -> str:
 	labels = [
 		"Timestamp",
@@ -113,11 +117,17 @@ def parse_readings(text: str) -> str:
 		"Notes",
 	]
 	parts = [p.strip() for p in text.strip().split("|")]
-	return "\n".join(
-		f"{label}: {value}"
-		for label, value in zip(labels, parts)
-		if value
-	)
+	lines = []
+	for label, value in zip(labels, parts):
+		if not value:
+			continue
+		if label == "Compass Heading (°, magnetic)":
+			try:
+				value = f"{value} ({cardinal(float(value))})"
+			except ValueError:
+				pass
+		lines.append(f"{label}: {value}")
+	return "\n".join(lines)
 
 def run(folder_path: str) -> None:
 	folder = Path(folder_path)
