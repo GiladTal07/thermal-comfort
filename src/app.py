@@ -443,8 +443,13 @@ if __name__ == "__main__":
 		was_connected[0] = now
 		if now:
 			wifi_btn.place_forget()
+			if sending[0]:
+				btn.config(bg="#ff9800", text="Sending...")
 		else:
 			wifi_btn.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-15, width=120, height=90)
+			if sending[0]:
+				sending[0] = False
+				btn.config(state="normal", bg="#ff9800", text="Saved — will send when online")
 		root.after(15000, poll_connection)
 
 	root.after(15000, poll_connection)
