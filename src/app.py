@@ -1,3 +1,5 @@
+import queue
+import collections
 import shutil
 import time
 from screeninfo import get_monitors
@@ -48,12 +50,46 @@ def archive_capture() -> Path:
 	return dest
 
 if __name__ == "__main__":
+	send_queue = queue.Queue()
+	status_queue = queue.Queue()
+
 	running = False
+	sending = [False]
 	photo = None
 	picam2 = None
 
 	geometry, sw, sh, sx, sy = screen_dimensions()
 	print(f"Target screen: {geometry}")
+
+	def reader_loop():
+		try:
+			pending = sorted(p.parent for p in ARCHIVE_DIR.glob("*/data.txt"))
+		except Exception as e:
+			print(f"Reader: startup scan failed: {e}")
+			pending = []
+
+		while True:
+			try:
+				try:
+					folder = send_queue.get(timeout=15)
+					if folder not in pending:
+						pending.append(folder)
+				except queue.Empty:
+					pass
+
+				if pending and is_connected(): #if neither is empty
+					folder = pending.pop(0)
+					status_queue.put({"folder": folder, "status": "sending", "detail": f"Sending {folder.name}..."})
+					try:
+						run(str(folder))
+						shutil.rmtree(folder, ignore_errors=True)
+						status_queue.put({"folder": folder, "status": "done", "detail": "Email sent!"})
+					except Exception as e:
+						pending.insert(0, folder)
+						status_queue.put({"folder": folder, "status": "error", "detail": str(e)})
+
+			except Exception as e:
+				print(f"Reader: unexpected error: {e}")
 
 	def make_picam():
 		cam = Picamera2()
@@ -92,7 +128,7 @@ if __name__ == "__main__":
 
 	def trigger():
 		global running, picam2
-		if picam2 is None or running:
+		if picam2 is None or running or sending[0]:
 			return
 		running = True
 		btn.config(state="disabled", bg="#555", text="Processing...")
@@ -107,24 +143,17 @@ if __name__ == "__main__":
 				time.sleep(0.5)
 				capture_data()
 				archive = archive_capture()
-				if not is_connected():
-					root.after(0, lambda: btn.config(bg="#ff9800", text="Saved — will send when online"))
-					return
-				root.after(0, lambda: btn.config(text="Analysing..."))
-				run(DATA_DIR)
-				shutil.rmtree(archive, ignore_errors=True)
-				root.after(0, lambda: btn.config(bg="#4caf50", text="Email sent!"))
+				send_queue.put(archive)
+				sending[0] = True
+				root.after(0, lambda: btn.config(bg="#ff9800", text="Sending..."))
 			except Exception as e:
-				print(f"Error: {e}")
-				saved = archive and archive.exists()
-				root.after(0, lambda: btn.config(bg="#ff9800" if saved else "#555", text="Saved — will send when online" if saved else "Error — check logs"))
+				print(f"Capture error: {e}")
+				root.after(0, lambda: btn.config(
+					state="normal", bg="#2196F3", text="CAPTURE"
+				))
 			finally:
 				picam2 = make_picam()
 				running = False
-				root.after(3000, lambda: btn.config(
-					state="normal", bg="#2196F3", text="CAPTURE"
-				))
-				root.after(3500, flush_queue)
 
 		Thread(target=work, daemon=True).start()
 
@@ -162,29 +191,6 @@ if __name__ == "__main__":
 	net_scroll_frame = tk.Frame(net_list_frame, bg="#1a1a1a")
 	net_scroll_frame.pack(fill="both", expand=True, padx=20, pady=4)
 
-	def flush_queue():
-		folders = sorted(p.parent for p in ARCHIVE_DIR.glob("*/data.txt"))
-		if not folders or running:
-			return
-		def send():
-			for folder in folders:
-				if not is_connected():
-					break
-				try:
-					root.after(0, lambda f=folder: btn.config(
-						state="disabled", bg="#ff9800",
-						text=f"Sending {f.name}..."
-					))
-					run(str(folder))
-					shutil.rmtree(folder, ignore_errors=True)
-				except Exception as e:
-					print(f"Queue send failed for {folder.name}: {e}")
-					break
-			root.after(0, lambda: btn.config(
-				state="normal", bg="#2196F3", text="CAPTURE"
-			))
-		Thread(target=send, daemon=True).start()
-
 	def show_camera():
 		if was_connected[0]:
 			wifi_btn.place_forget()
@@ -201,7 +207,7 @@ if __name__ == "__main__":
 				return
 			preview_active[0] = True
 			root.after(0, update_preview)
-			root.after(3000, flush_queue)
+			# root.after(3000, flush_queue)
 		Thread(target=init_cam, daemon=True).start()
 
 	def on_network_tap(ssid, known):
@@ -434,8 +440,6 @@ if __name__ == "__main__":
 
 	def poll_connection():
 		now = is_connected()
-		if now and not was_connected[0]:
-			flush_queue()
 		was_connected[0] = now
 		if now:
 			wifi_btn.place_forget()
@@ -444,6 +448,30 @@ if __name__ == "__main__":
 		root.after(15000, poll_connection)
 
 	root.after(15000, poll_connection)
+
+	# ── Reader thread ─────────────────────────────────────────────────────────
+	reader_thread = Thread(target=reader_loop, daemon=True)
+	reader_thread.start()
+
+	def poll_status():
+		global reader_thread
+		while not status_queue.empty():
+			msg = status_queue.get_nowait()
+			if msg["status"] == "done":
+				sending[0] = False
+				btn.config(state="normal", bg="#4caf50", text=msg["detail"])
+				root.after(3000, lambda: btn.config(bg="#2196F3", text="CAPTURE"))
+			elif msg["status"] == "error":
+				sending[0] = False
+				btn.config(state="normal", bg="#ff9800", text=msg["detail"])
+				root.after(3000, lambda: btn.config(bg="#2196F3", text="CAPTURE"))
+		if not reader_thread.is_alive():
+			print("Reader thread died — restarting")
+			reader_thread = Thread(target=reader_loop, daemon=True)
+			reader_thread.start()
+		root.after(200, poll_status)
+
+	root.after(200, poll_status)
 
 	# ── Touch listener ────────────────────────────────────────────────────────
 	def find_touch_device():
