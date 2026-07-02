@@ -1,7 +1,5 @@
 import os
-import warnings
 os.environ["LIBCAMERA_LOG_LEVELS"] = "*:ERROR"
-warnings.filterwarnings("ignore", message=".*setDaemon.*")
 
 import queue
 import shutil
@@ -245,10 +243,10 @@ if __name__ == "__main__":
 			row = tk.Frame(net_scroll_frame, bg="#2a2a2a", cursor="hand2")
 			row.pack(fill="x", pady=3, ipady=8)
 			tk.Label(row, text=ssid, fg="white", bg="#2a2a2a",
-				font=("Arial", 15, "bold"), anchor="w").pack(side="left", padx=12)
+				font=("Arial", 20, "bold"), anchor="w").pack(side="left", padx=12)
 			if is_known:
 				tk.Label(row, text="saved", fg="#4caf50", bg="#2a2a2a",
-					font=("Arial", 12)).pack(side="right", padx=12)
+					font=("Arial", 15)).pack(side="right", padx=12)
 			row.bind("<Button-1>", lambda e, s=ssid, k=is_known: on_network_tap(s, k))
 			for child in row.winfo_children():
 				child.bind("<Button-1>", lambda e, s=ssid, k=is_known: on_network_tap(s, k))
