@@ -64,61 +64,47 @@ def read_si7021():
 def init_sensors():
     global _mlx90640, _i2c
     if _mlx90640 is None:
-        print("Opening I2C bus...")
         _i2c = busio.I2C(board.SCL, board.SDA)
-        print("I2C bus open. Initialising MLX90640...")
         _mlx90640 = adafruit_mlx90640.MLX90640(_i2c)
-        print("MLX90640 done. Setting refresh rate...")
         _mlx90640.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_2_HZ
-        print("Refresh rate set.")
 
 def read_sensor_values():
     sensor_faults = []
 
-    print("Initialising I2C...")
     try:
         init_sensors()
-        print("I2C init done.")
     except Exception as e:
         return None, None, None, None, None, None, [f"I2C init failed: {e}"]
 
     thermal = None
     mrt = None
-    print("Reading MLX90640...")
     try:
         frame = [0] * 768
         _mlx90640.getFrame(frame)
         thermal = np.array(frame).reshape(24, 32)
         mrt = _weighted_mrt(thermal)
-        print(f"MLX90640 done. mrt={mrt}")
     except Exception as e:
         sensor_faults.append(f"MLX90640: {e}")
         print(f"MLX90640 error: {e}")
 
     air_temp = None
     humidity = None
-    print("Reading SI7021...")
     try:
         air_temp, humidity = read_si7021()
-        print(f"SI7021 done. temp={air_temp} humidity={humidity}")
     except Exception as e:
         sensor_faults.append(f"SI7021: {e}")
         print(f"SI7021 error: {e}")
 
     air_speed = None
-    print("Reading PAV3015...")
     try:
         air_speed = read_air_speed()
-        print(f"PAV3015 done. air_speed={air_speed}")
     except Exception as e:
         sensor_faults.append(f"PAV3015: {e}")
         print(f"PAV3015 error: {e}")
 
     heading = None
-    print("Reading BMM150...")
     try:
         heading = read_bmm150()
-        print(f"BMM150 done. heading={heading}°")
     except Exception as e:
         sensor_faults.append(f"BMM150: {e}")
         print(f"BMM150 error: {e}")
@@ -144,7 +130,6 @@ def capture_photo(filename=None, output_dir=None):
     )
 
     if result.returncode == 0:
-        print(f"Photo saved: {filepath}")
         return filepath
     else:
         print(f"Camera error: {result.stderr}")
@@ -170,7 +155,6 @@ if __name__ == '__main__':
     print(read_sensor_values())
     try:
         heading = read_bmm150()
-        print(f"BMM150 heading: {heading}°")
     except Exception as e:
         print(f"BMM150 error: {e}")
     capture_photo()

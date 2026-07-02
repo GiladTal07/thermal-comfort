@@ -1,5 +1,9 @@
+import os
+import warnings
+os.environ["LIBCAMERA_LOG_LEVELS"] = "*:ERROR"
+warnings.filterwarnings("ignore", message=".*setDaemon.*")
+
 import queue
-import collections
 import shutil
 import time
 from screeninfo import get_monitors
