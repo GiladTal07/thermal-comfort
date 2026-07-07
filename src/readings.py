@@ -9,6 +9,15 @@ from pmv_calculator import calculate_pmv, DEFAULT_CLO, DEFAULT_MET
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(_project_root, 'data')
 
+# --- Manual overrides for testing ---
+# Set any value to bypass the corresponding sensor reading.
+# Leave as None to use real hardware.
+OVERRIDE_AIR_TEMP  = None   # °C      e.g. 23.5
+OVERRIDE_HUMIDITY  = None   # %       e.g. 55.0
+OVERRIDE_MRT       = None   # °C      e.g. 24.0
+OVERRIDE_AIR_SPEED = None   # m/s     e.g. 0.1
+OVERRIDE_HEADING   = None   # degrees e.g. 180.0
+
 
 _DATA_FILES = ['data.txt', 'image.jpg', 'thermal.png', 'thermal.json']
 
@@ -22,6 +31,11 @@ def capture_data(met=DEFAULT_MET, clo=DEFAULT_CLO) -> str:
 
     print("Reading sensors...")
     air_temp, humidity, mean_radiant, thermal, air_speed, heading, sensor_faults = read_sensor_values()
+    if OVERRIDE_AIR_TEMP  is not None: air_temp     = OVERRIDE_AIR_TEMP
+    if OVERRIDE_HUMIDITY  is not None: humidity     = OVERRIDE_HUMIDITY
+    if OVERRIDE_MRT       is not None: mean_radiant = OVERRIDE_MRT
+    if OVERRIDE_AIR_SPEED is not None: air_speed    = OVERRIDE_AIR_SPEED
+    if OVERRIDE_HEADING   is not None: heading      = OVERRIDE_HEADING
     print(f"Sensors done. air_temp={air_temp} humidity={humidity} mrt={mean_radiant} air_speed={air_speed} heading={heading}")
     if sensor_faults:
         print(f"Sensor faults: {'; '.join(sensor_faults)}")
