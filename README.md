@@ -30,7 +30,8 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 ```
 thermal-comfort/
 ├── src/                    # Device application code
-│   ├── llm.py              # Entry point: touchscreen UI, Wi-Fi setup, Claude analysis, email dispatch
+│   ├── app.py              # Entry point: touchscreen UI, Wi-Fi setup, capture orchestration
+│   ├── llm.py              # Claude API interaction, sensor data formatting, email dispatch
 │   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, BMM150, Pi camera
 │   ├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
 │   ├── pmv_calculator.py   # PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
@@ -138,7 +139,7 @@ WorkingDirectory=/home/your-username/thermal-comfort
 EnvironmentFile=/home/your-username/thermal-comfort/.env
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/your-username/.Xauthority
-ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/src/llm.py
+ExecStart=/usr/bin/python3 -u /home/your-username/thermal-comfort/src/app.py
 Restart=always
 RestartSec=1
 
@@ -160,17 +161,22 @@ The service will now start automatically on every boot with no monitor needed.
 
 ### Normal operation
 
-With the service running, the touchscreen shows a Wi-Fi setup screen on first boot. Enter the network credentials and tap **Connect**. Once connected, the live camera preview appears with a **CAPTURE** button at the bottom. Tap it to capture sensors + photo, call Claude, and email the report.
+With the service running, the touchscreen shows a Wi-Fi setup screen on first boot. Enter the network credentials and tap **Connect**. Once connected, the live camera preview appears with a **CAPTURE** button at the bottom. Tap it to trigger a capture.
 
-On subsequent boots the device auto-connects using saved credentials and goes straight to the camera preview.
+On subsequent boots the device auto-connects using saved credentials and goes straight to the camera preview. A **Wi-Fi** button appears in the bottom-right corner of the camera screen only when the device is not connected.
 
-If the device is offline when CAPTURE is pressed, the capture is archived to `data_archive/` and sent automatically the next time a connection is established.
+The app runs two threads simultaneously:
+
+- **Capture thread** (main) — owns the UI, camera preview, sensor reading, and archiving. On button press it writes the capture to `data_archive/` and signals the Reader. It never calls the LLM or sends email directly.
+- **Reader thread** (daemon) — waits for work on an internal queue, checks connectivity, calls the Claude API, and sends the email. On startup it scans `data_archive/` for any unsent captures left over from a previous session and retries them automatically.
+
+If the device is offline when CAPTURE is pressed, the capture is archived and the Reader sends it automatically once a connection is established. If the Reader thread crashes unexpectedly, the main thread detects this and restarts it.
 
 ### Manual run (no systemd)
 
 ```bash
 cd ~/thermal-comfort
-python3 src/llm.py
+python3 src/app.py
 ```
 
 ### Capture only (no LLM)
@@ -213,7 +219,7 @@ PMV and PPD are computed using [`pythermalcomfort`](https://pythermalcomfort.rea
 | `met` | 1.1 | Metabolic rate (light sedentary activity) |
 | `clo` | 0.61 | Clothing insulation (typical light office wear) |
 
-Air speed from the sensor is automatically converted to relative air speed using `v_relative()` before the PMV calculation. Input validation flags out-of-range conditions (e.g. temperature outside 10–30 °C, air speed above 1 m/s) and includes them as notes in the reading.
+Air speed from the sensor is automatically converted to relative air speed using `v_relative()` before the PMV calculation. If any input falls outside the model's validated range (air temperature outside 10–30 °C, MRT outside 10–40 °C, air speed above 1 m/s), PMV, PPD, and TSV are not calculated. The report's Appendix A will show a descriptive reason instead — for example, *Not calculated — air temperature exceeds 30 °C (malfunction)* — so the cause is always explicit.
 
 `met` and `clo` can be overridden at runtime by passing them to `capture_data(met=..., clo=...)` or `readings.py`.
 
@@ -221,7 +227,7 @@ Air speed from the sensor is automatically converted to relative air speed using
 
 The Claude API (`claude-haiku-4-5`) receives:
 
-- Labeled sensor readings (timestamp, air temp, humidity, MRT, air speed, PMV, PPD, TSV, notes)
+- Labeled sensor readings (timestamp, air temp, humidity, MRT, air speed, compass heading with cardinal direction, PMV, PPD, TSV, notes)
 - HQ JPEG photo of the space
 - Bicubic-upscaled inferno thermal heatmap (brighter = warmer)
 
