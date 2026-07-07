@@ -1,6 +1,7 @@
 .env
 
 # Planning docs — kept local only
+design.md
 plan.md
 prd.md
 specs.md
