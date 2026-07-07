@@ -10,20 +10,18 @@ def calculate_pmv(air_temp, humidity, mrt, air_speed, clo=DEFAULT_CLO, met=DEFAU
     vr  = v_relative(v=air_speed, met=met)
     
     notes = ""
-    if (air_temp<10):
+    if air_temp < 10:
         notes += "Temperature too low, "
-    elif (air_temp>30):
+    if air_temp > 30:
         notes += "Temperature too high, "
-    elif (mrt<10):
+    if mrt < 10:
         notes += "Surface temperature too low, "
-    elif (mrt>40):
+    if mrt > 40:
         notes += "Surface temperature too high, "
-    elif (vr<0):
+    if vr < 0:
         notes += "Negative air speed, "
-    elif (vr>1):
+    if vr > 1:
         notes += "Air speed too high, "
-    else:
-        notes = "No notes.  "
 
     result = pmv_ppd_iso(
         tdb=air_temp,
@@ -42,7 +40,7 @@ def calculate_pmv(air_temp, humidity, mrt, air_speed, clo=DEFAULT_CLO, met=DEFAU
         'pmv':          pmv,
         'ppd':          ppd,
         'tsv':          result.tsv,
-        'notes':        notes[:-2]
+        'notes':        notes[:-2] if notes else "No notes.",
     }
 
 if __name__ == '__main__':

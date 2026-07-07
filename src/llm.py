@@ -121,10 +121,8 @@ _PMV_REASONS = [
 
 def _pmv_reason(notes: str) -> str:
 	n = notes.lower()
-	for fragment, reason in _PMV_REASONS:
-		if fragment in n:
-			return reason
-	return "sensor data outside model range"
+	reasons = [reason for fragment, reason in _PMV_REASONS if fragment in n]
+	return "; ".join(reasons) if reasons else "sensor data outside model range"
 
 def parse_readings(text: str) -> str:
 	labels = [
