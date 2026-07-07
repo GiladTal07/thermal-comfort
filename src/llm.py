@@ -109,20 +109,12 @@ def cardinal(degrees: float) -> str:
 	directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 	return directions[round(degrees / 45) % 8]
 
-_PMV_REASONS = [
-	("temperature too low",         "air temperature below 10 °C (malfunction)"),
-	("temperature too high",        "air temperature exceeds 30 °C (malfunction)"),
-	("surface temperature too low", "mean radiant temperature below 10 °C (malfunction)"),
-	("surface temperature too high","mean radiant temperature exceeds 40 °C (malfunction)"),
-	("negative air speed",          "air speed reading is negative"),
-	("air speed too high",          "air speed exceeds 1 m/s"),
-	("sensor fault",                "sensor fault — one or more readings unavailable"),
-]
-
 def _pmv_reason(notes: str) -> str:
-	n = notes.lower()
-	reasons = [reason for fragment, reason in _PMV_REASONS if fragment in n]
-	return "; ".join(reasons) if reasons else "sensor data outside model range"
+	parts = [p.strip() for p in notes.split(" | ")]
+	calc = next((p for p in parts if not p.upper().startswith("SENSOR FAULT")), None)
+	if calc and calc != "No notes.":
+		return calc
+	return "sensor fault — one or more readings unavailable"
 
 def parse_readings(text: str) -> str:
 	labels = [

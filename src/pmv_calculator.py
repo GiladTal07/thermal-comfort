@@ -11,17 +11,21 @@ def calculate_pmv(air_temp, humidity, mrt, air_speed, clo=DEFAULT_CLO, met=DEFAU
     
     notes = ""
     if air_temp < 10:
-        notes += "Temperature too low, "
+        notes += "air temperature below 10 °C, "
     if air_temp > 30:
-        notes += "Temperature too high, "
+        notes += "air temperature exceeds 30 °C, "
+    if humidity < 30:
+        notes += "humidity below 30 %, "
+    if humidity > 70:
+        notes += "humidity exceeds 70 %, "
     if mrt < 10:
-        notes += "Surface temperature too low, "
+        notes += "mean radiant temperature below 10 °C, "
     if mrt > 40:
-        notes += "Surface temperature too high, "
+        notes += "mean radiant temperature exceeds 40 °C, "
     if vr < 0:
-        notes += "Negative air speed, "
+        notes += "air speed reading is negative, "
     if vr > 1:
-        notes += "Air speed too high, "
+        notes += "air speed exceeds 1 m/s, "
 
     result = pmv_ppd_iso(
         tdb=air_temp,
