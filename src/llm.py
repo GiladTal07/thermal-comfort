@@ -61,11 +61,14 @@ visually relevant to thermal comfort.
 numbers mean for the typical occupant (e.g. "PMV of +1.2 indicates mild warmth; approximately \
 35 % of occupants would be dissatisfied"). Note whether humidity and air speed fall within \
 the ISO 7730 comfort bands. The standard PMV model uses a single metabolic reference and does \
-not distinguish gender. Assume an even male/female split in the office. Research shows women \
+not distinguish gender. Assume an even male/female split in the office. Research shows women \ 
 tend to prefer environments roughly 1-2 °C warmer than men due to lower average metabolic rate \
 and different thermoregulatory physiology, so the effective comfort zone for female occupants \
-sits slightly warmer than the PMV figure suggests. Always note how the measured PMV is likely to \
-be experienced differently by male versus female occupants.
+sits slightly warmer than the PMV figure suggests. Always note how the measured PMV is likely \
+to be experienced differently by male versus female occupants: when the PMV is cool-biased \
+(negative), female occupants are more likely to perceive genuine discomfort than male occupants; \
+when the PMV is warm-biased (positive), male occupants reach their comfort limit sooner. Never \
+invert this. A cool-biased environment is not more comfortable for women. \
 - **Findings**: Notable observations from the thermal heatmap and sensor values — radiant \
 asymmetry, localised hot or cold zones, humidity outside the 30-70 % comfort range. Flag \
 anything outside ISO 7730 limits. Do not attribute findings to building system faults. \
@@ -93,7 +96,10 @@ individual who remains uncomfortable may simply be part of the remaining dissati
 percentage, and that this is why the personal actions target the individual rather than the \
 room as a whole. If no recommendations were made, omit that second clause.
 - **Appendix A — Sensor Data**: All labeled sensor readings as a two-column markdown table \
-with headers Parameter | Value.
+with headers Parameter | Value. If the input value for PMV, PPD, or TSV begins with \
+"Not calculated", copy it verbatim into the table cell wrapped in gray italic HTML: \
+`<span style="color:#888888"><em>Not calculated — reason</em></span>`. \
+Do not paraphrase, shorten, or reformat it.
 """
 
 def encode_image(path: Path) -> str:
@@ -102,6 +108,23 @@ def encode_image(path: Path) -> str:
 def cardinal(degrees: float) -> str:
 	directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 	return directions[round(degrees / 45) % 8]
+
+_PMV_REASONS = [
+	("temperature too low",         "air temperature below 10 °C (malfunction)"),
+	("temperature too high",        "air temperature exceeds 30 °C (malfunction)"),
+	("surface temperature too low", "mean radiant temperature below 10 °C (malfunction)"),
+	("surface temperature too high","mean radiant temperature exceeds 40 °C (malfunction)"),
+	("negative air speed",          "air speed reading is negative"),
+	("air speed too high",          "air speed exceeds 1 m/s"),
+	("sensor fault",                "sensor fault — one or more readings unavailable"),
+]
+
+def _pmv_reason(notes: str) -> str:
+	n = notes.lower()
+	for fragment, reason in _PMV_REASONS:
+		if fragment in n:
+			return reason
+	return "sensor data outside model range"
 
 def parse_readings(text: str) -> str:
 	labels = [
@@ -117,11 +140,18 @@ def parse_readings(text: str) -> str:
 		"Notes",
 	]
 	parts = [p.strip() for p in text.strip().split("|")]
+
+	notes_raw = parts[9] if len(parts) > 9 else ""
+	pmv_missing = len(parts) > 6 and (not parts[6] or parts[6].lower() in ("nan", "none"))
+	reason = _pmv_reason(notes_raw) if pmv_missing else None
+
 	lines = []
 	for label, value in zip(labels, parts):
-		if not value:
-			continue
-		if label == "Compass Heading (°, magnetic)":
+		if label in ("PMV", "PPD (%)", "TSV") and reason:
+			value = f"Not calculated — {reason}"
+		elif not value or value.lower() in ("nan", "none"):
+			value = "N/A"
+		elif label == "Compass Heading (°, magnetic)":
 			try:
 				value = f"{value} ({cardinal(float(value))})"
 			except ValueError:
