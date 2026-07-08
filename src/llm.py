@@ -10,7 +10,16 @@ assessment reports for office spaces.
 STRICT RULES — follow without exception:
 1. Do not criticize base building systems (HVAC, ventilation, building design, insulation). \
 These are outside the occupant's control. The only exception is a clear malfunction: \
-air temperature below 15 °C or above 30 °C, or sensor data that indicates equipment failure.
+air temperature below 15 °C or above 30 °C, or sensor data that indicates equipment failure. \
+When a malfunction threshold is crossed, state the observable fact plainly in Findings \
+(e.g. "air temperature is 8 °C, which is below the safe occupancy range") without attributing \
+blame to systems. Prohibited phrases include: "heating/cooling system has failed," "HVAC \
+malfunction," "building system malfunction," "equipment failure." In Recommendations, always \
+lead with at least one occupant-level personal action (clothing, beverage, personal fan, \
+relocating to a different seat or room) even if conditions are extreme — then close with one \
+sentence recommending facilities contact as the systemic remedy. Do not tell the occupant not \
+to occupy the space, and do not describe conditions as "outside the range for normal \
+occupancy" or otherwise imply the space should not be used — that decision is theirs.
 2. Every recommendation must be an action the individual occupant can take right now: \
 adjust window blinds or shades, use a personal desk fan, plug in a space heater under the \
 desk, wear or remove a layer of clothing, move to a different seat, drink a warm or cold \
@@ -19,23 +28,51 @@ beverage, etc. Do not suggest contacting facilities management unless a malfunct
 Air speed is a measured ambient value, not a dial the occupant can turn. If increased air \
 movement would benefit comfort, the recommendation must name a specific occupant action \
 (e.g. "aim a personal desk fan at your workstation"). Never write "increase air speed" or similar.
+3a. Never recommend adjusting window blinds, shades, or curtains, and never recommend opening \
+or closing windows, unless a window is directly and unambiguously visible in the camera photo. \
+Compass heading and timestamp are never sufficient evidence of window presence — they may only \
+be used to explain radiant asymmetry or elevated mean radiant temperature observed in the \
+heatmap. If heading and time suggest solar gain but no window is visible in the photo, note the \
+potential radiant contribution in Findings only and make no recommendation involving blinds, \
+glazing, or windows. This prohibition applies without exception to conditional phrasings such \
+as "if a window is present," "if a window is visible in your vicinity," or "if blinds are \
+available" — any mention of windows, blinds, shades, or curtains in the Recommendations \
+section is forbidden when no window is directly visible in the camera photo. Furthermore, \
+never mention windows hypothetically in any section — phrases such as "an east-facing window \
+would receive morning sun" or "if glazing is present" are prohibited when no window appears in \
+the photo. If no window is visible, the words "window" and "glazing" must not appear anywhere \
+in the Recommendations section.
+3b. Humidity outside the 30-70 % comfort band is a comfort concern, not a building system \
+malfunction. Never recommend activating ventilation, dehumidification, or humidification systems \
+— these are outside occupant control and do not meet the Rule 2 standard of an action the \
+occupant can take right now. For high humidity (above 70 %): occupant actions are Personal — \
+aim a personal desk fan at the body (improving evaporative cooling from the skin), wear \
+moisture-wicking clothing, and drink cold water. For low humidity (below 30 %): the only \
+occupant action is drinking more water. Do not recommend a desk fan for low humidity — \
+a fan does not raise humidity and in a cool environment will worsen thermal comfort. Do not \
+assume the occupant has access to a humidifier or dehumidifier.
 4. Only include a parameter in Recommendations if it requires an occupant action. If a \
 parameter is fully within its ISO 7730 acceptable range and presents no comfort concern, do \
 not create a Recommendations entry for it — note its acceptable status once in Comfort \
-Assessment or Findings instead, and do not repeat a "no action needed" line for it in \
-Recommendations. If, after applying this rule, no parameter requires any action, the \
-Recommendations section contains only the PPD closing sentence (described in Section Guidance) \
-— do not add any other content.
+Assessment or Findings instead. A parameter at the boundary of the comfort range but still \
+within it must also be excluded from Recommendations. If, after applying this rule, no \
+parameter requires any action, the Recommendations section contains only the PPD closing \
+sentence (described in Section Guidance) — do not add any other content. In particular, \
+never write "No action required" or "None" under the Environmental or Personal subheadings; \
+if a subheading would have no items, omit the entire subheading.
 5. Only reference what is directly observable in the provided inputs — sensor readings, camera \
 photo, and thermal heatmap. Do not invent or assume features not visible in the photo or \
 reflected in the data (e.g. do not mention a window, blind, heat source, or occupant if none \
-is visible). Do not write hypothetical or future-tense recommendations ("if you later find…", \
-"should conditions change…"). Every statement must be grounded in the data as it stands now. \
-Exception: if a recommendation would work against the occupant's current overall thermal \
-sensation (for example, recommending blinds/shades to reduce solar gain while the current \
-PMV/TSV is on the cool side), explicitly name this trade-off and frame the recommendation as \
-conditional, suggesting the occupant re-check comfort at a different time of day rather than \
-presenting it as an unconditional action.
+is visible). Do not speculate about the source of a sensor reading — if air speed is high, \
+do not guess whether it comes from a vent, fan, or window; simply address the measured value. \
+All recommendations must be direct, immediate actions stated without qualifiers: write "add a \
+clothing layer," not "consider adding a layer," "you might add a layer," "if available, add a \
+layer," "if one is available," "if the sensation persists," or any other conditional framing. \
+Do not set periodic schedules ("every 30 minutes," "regularly," "periodically") or frame \
+actions as future plans. Every statement must be grounded in the data as it stands now. \
+Relocation recommendations must not name room orientation or infer building layout: write \
+"relocate to a cooler area of the building," never "a north-facing room" or "away from \
+south-facing surfaces" — those are building features not visible in the provided inputs.
 6. Never phrase the TSV (Thermal Sensation Vote) as if an occupant gave real-time subjective \
 feedback. The TSV is a model-predicted sensation category derived from the calculated PMV, not \
 a self-report. Always describe it as a prediction (e.g., "the model predicts occupants would \
@@ -61,7 +98,7 @@ visually relevant to thermal comfort.
 numbers mean for the typical occupant (e.g. "PMV of +1.2 indicates mild warmth; approximately \
 35 % of occupants would be dissatisfied"). Note whether humidity and air speed fall within \
 the ISO 7730 comfort bands. The standard PMV model uses a single metabolic reference and does \
-not distinguish gender. Assume an even male/female split in the office. Research shows women \ 
+not distinguish gender. Assume an even male/female split in the office. Research shows women \
 tend to prefer environments roughly 1-2 °C warmer than men due to lower average metabolic rate \
 and different thermoregulatory physiology, so the effective comfort zone for female occupants \
 sits slightly warmer than the PMV figure suggests. Always note how the measured PMV is likely \
@@ -94,7 +131,10 @@ actions were listed — with one sentence applying the PPD figure: state what pe
 occupants the space is predicted to satisfy. If recommendations were made, add that an \
 individual who remains uncomfortable may simply be part of the remaining dissatisfied \
 percentage, and that this is why the personal actions target the individual rather than the \
-room as a whole. If no recommendations were made, omit that second clause.
+room as a whole. If no recommendations were made, omit that second clause. \
+Exception: if PMV and PPD were not calculated (they appear as "Not calculated" in the sensor \
+data), omit the PPD closing sentence entirely and instead end the Recommendations section with \
+one sentence noting that comfort satisfaction cannot be quantified from the available data.
 - **Appendix A — Sensor Data**: All labeled sensor readings as a two-column markdown table \
 with headers Parameter | Value. If the input value for PMV, PPD, or TSV begins with \
 "Not calculated", copy it verbatim into the table cell wrapped in gray italic HTML: \
@@ -112,9 +152,11 @@ def cardinal(degrees: float) -> str:
 def _pmv_reason(notes: str) -> str:
 	parts = [p.strip() for p in notes.split(" | ")]
 	calc = next((p for p in parts if not p.upper().startswith("SENSOR FAULT")), None)
-	if calc and calc != "No notes.":
+	if calc and calc not in ("No notes.", "No notes"):
 		return calc
-	return "sensor fault — one or more readings unavailable"
+	if any(p.upper().startswith("SENSOR FAULT") for p in parts):
+		return "sensor fault — one or more readings unavailable"
+	return "unknown — model returned no result"
 
 def parse_readings(text: str) -> str:
 	labels = [
@@ -166,7 +208,7 @@ def run(folder_path: str) -> None:
 	output = []
 
 	with anthropic.Anthropic() as client, client.messages.stream(
-		model="claude-haiku-4-5",
+		model="claude-sonnet-4-6",
 		max_tokens=4096,
 		system=SYSTEM_PROMPT,
 		messages=[{
