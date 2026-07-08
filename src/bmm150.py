@@ -71,7 +71,7 @@ class BMM150:
 
     @staticmethod
     def _parse_trim(raw: bytes) -> dict:
-        """Parse the 21 trim bytes (0x5D–0x71) into a coefficient dict."""
+        """Parse the 21 trim bytes (0x5D-0x71) into a coefficient dict."""
         def s8(b):        return b if b < 128 else b - 256
         def u16(lo, hi):  return (hi << 8) | lo
         def s16(lo, hi):  v = u16(lo, hi); return v if v < 32768 else v - 65536
@@ -89,7 +89,7 @@ class BMM150:
             "dig_y2":   s8(raw[8]),
             "dig_z2":   s16(raw[11], raw[12]),
             "dig_z1":   u16(raw[13], raw[14]),
-            "dig_xyz1": u16(raw[15], raw[16]),
+            "dig_xyz1": ((raw[16] & 0x7F) << 8) | raw[15],
             "dig_z3":   s16(raw[17], raw[18]),
             "dig_xy2":  s8(raw[19]),
             "dig_xy1":  raw[20],
@@ -127,7 +127,7 @@ class BMM150:
 
     def _comp_x(self, raw_x: int, rhall: int) -> float:
         t = self._trim
-        if raw_x == self._OVERFLOW_XY or rhall == 0:
+        if raw_x == self._OVERFLOW_XY or rhall == 0 or t["dig_xyz1"] == 0:
             return float("nan")
         f = t["dig_xyz1"] * 16384.0 / rhall - 16384.0
         return (
@@ -140,7 +140,7 @@ class BMM150:
 
     def _comp_y(self, raw_y: int, rhall: int) -> float:
         t = self._trim
-        if raw_y == self._OVERFLOW_XY or rhall == 0:
+        if raw_y == self._OVERFLOW_XY or rhall == 0 or t["dig_xyz1"] == 0:
             return float("nan")
         f = t["dig_xyz1"] * 16384.0 / rhall - 16384.0
         return (

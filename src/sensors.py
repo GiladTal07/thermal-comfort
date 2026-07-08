@@ -18,7 +18,7 @@ PAV3015_ADDRESS = 0x28
 I2C_BUS = 1
 BMM150_I2C_BUS = 3
 BMM150_ADDRESS = 0x13
-BMM150_OFFSET_DEG = 16.0   # tune until a known bearing reads correctly
+BMM150_OFFSET_DEG = -16.0
 
 def read_air_speed():
     with smbus2.SMBus(I2C_BUS) as bus:
