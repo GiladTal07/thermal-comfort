@@ -4,19 +4,21 @@ import numpy as np
 import adafruit_mlx90640
 import os
 import time
-import math
 import subprocess
 from datetime import datetime
 import smbus2
+from bmm150 import BMM150, BMM150OverflowError
 
 _mlx90640 = None
 _i2c = None
+_bmm150 = None
 
 SI7021_ADDRESS = 0x40
 PAV3015_ADDRESS = 0x28
-BMM150_ADDRESS = 0x13
 I2C_BUS = 1
 BMM150_I2C_BUS = 3
+BMM150_ADDRESS = 0x13
+BMM150_OFFSET_DEG = 0.0   # tune until a known bearing reads correctly
 
 def read_air_speed():
     with smbus2.SMBus(I2C_BUS) as bus:
@@ -62,11 +64,13 @@ def read_si7021():
     return round(175.72 * raw_t / 65536 - 46.85, 2), round(125 * raw_h / 65536 - 6, 2)
 
 def init_sensors():
-    global _mlx90640, _i2c
+    global _mlx90640, _i2c, _bmm150
     if _mlx90640 is None:
         _i2c = busio.I2C(board.SCL, board.SDA)
         _mlx90640 = adafruit_mlx90640.MLX90640(_i2c)
         _mlx90640.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_2_HZ
+    if _bmm150 is None:
+        _bmm150 = BMM150(BMM150_I2C_BUS, BMM150_ADDRESS, BMM150_OFFSET_DEG)
 
 def read_sensor_values():
     sensor_faults = []
@@ -104,7 +108,10 @@ def read_sensor_values():
 
     heading = None
     try:
-        heading = read_bmm150()
+        heading = _bmm150.heading()
+    except BMM150OverflowError as e:
+        sensor_faults.append(f"BMM150: {e}")
+        print(f"BMM150 overflow: {e}")
     except Exception as e:
         sensor_faults.append(f"BMM150: {e}")
         print(f"BMM150 error: {e}")
@@ -135,26 +142,7 @@ def capture_photo(filename=None, output_dir=None):
         print(f"Camera error: {result.stderr}")
         return None
 
-def read_bmm150():
-    with smbus2.SMBus(BMM150_I2C_BUS) as bus:
-        bus.write_byte_data(BMM150_ADDRESS, 0x4B, 0x01)  # power on
-        time.sleep(0.003)
-        bus.write_byte_data(BMM150_ADDRESS, 0x4C, 0x00)  # normal mode
-        time.sleep(0.02)
-        data = bus.read_i2c_block_data(BMM150_ADDRESS, 0x42, 6)
-    raw_x = (data[1] << 5) | (data[0] >> 3)
-    if raw_x & 0x1000:
-        raw_x -= 0x2000
-    raw_y = (data[3] << 5) | (data[2] >> 3)
-    if raw_y & 0x1000:
-        raw_y -= 0x2000
-    deg = math.degrees(math.atan2(-raw_y, raw_x)) - 90
-    return round(deg % 360, 1)
 
 if __name__ == '__main__':
     print(read_sensor_values())
-    try:
-        heading = read_bmm150()
-    except Exception as e:
-        print(f"BMM150 error: {e}")
     capture_photo()
