@@ -148,7 +148,7 @@ def read_bmm150():
     raw_y = (data[3] << 5) | (data[2] >> 3)
     if raw_y & 0x1000:
         raw_y -= 0x2000
-    deg = math.degrees(math.atan2(-raw_y, raw_x))
+    deg = math.degrees(math.atan2(-raw_y, raw_x)) - 90
     return round(deg % 360, 1)
 
 if __name__ == '__main__':
