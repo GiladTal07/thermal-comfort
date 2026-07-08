@@ -56,10 +56,11 @@ parameter is fully within its ISO 7730 acceptable range and presents no comfort 
 not create a Recommendations entry for it — note its acceptable status once in Comfort \
 Assessment or Findings instead. A parameter at the boundary of the comfort range but still \
 within it must also be excluded from Recommendations. If, after applying this rule, no \
-parameter requires any action, the Recommendations section contains only the PPD closing \
-sentence (described in Section Guidance) — do not add any other content. In particular, \
-never write "No action required" or "None" under the Environmental or Personal subheadings; \
-if a subheading would have no items, omit the entire subheading.
+parameter requires any action, omit the Environmental and Personal subheadings entirely and \
+instead write one sentence stating that no adjustments are required, followed by one sentence \
+of universal individual comfort guidance (see Section Guidance — Recommendations), followed \
+by the PPD closing sentence. Never write "No action required" or "None" under the \
+Environmental or Personal subheadings — if a subheading would have no items, omit it.
 5. Only reference what is directly observable in the provided inputs — sensor readings, camera \
 photo, and thermal heatmap. Do not invent or assume features not visible in the photo or \
 reflected in the data (e.g. do not mention a window, blind, heat source, or occupant if none \
@@ -126,12 +127,19 @@ the desk/chair).
 clothing layer, drinking a warm or cold beverage, using a desk fan aimed only at themselves).
   Include a parameter under one or both subheadings only if it needs an action; \
 otherwise leave it out of this section entirely (its acceptable status was already covered in \
-Comfort Assessment/Findings). Always end the Recommendations section — whether or not any \
-actions were listed — with one sentence applying the PPD figure: state what percentage of \
-occupants the space is predicted to satisfy. If recommendations were made, add that an \
-individual who remains uncomfortable may simply be part of the remaining dissatisfied \
-percentage, and that this is why the personal actions target the individual rather than the \
-room as a whole. If no recommendations were made, omit that second clause. \
+Comfort Assessment/Findings). \
+  When no parameter needs action (Rule 4 all-in-range case): omit both subheadings and write \
+these two sentences before the PPD closing sentence — first, "No adjustments are required for \
+the current conditions." Second, "Occupants who feel cool may add a clothing layer or drink a \
+warm beverage; those who feel warm may remove a layer or drink a cold beverage." Then end with \
+the PPD closing sentence (omitting the "remaining dissatisfied percentage" clause, since no \
+recommendations were made). \
+  Always end the Recommendations section — whether or not any actions were listed — with one \
+sentence applying the PPD figure: state what percentage of occupants the space is predicted to \
+satisfy. If specific recommendations were made, add that an individual who remains uncomfortable \
+may simply be part of the remaining dissatisfied percentage, and that this is why the personal \
+actions target the individual rather than the room as a whole. If no specific recommendations \
+were made (all-in-range case), omit that second clause. \
 Exception: if PMV and PPD were not calculated (they appear as "Not calculated" in the sensor \
 data), omit the PPD closing sentence entirely and instead end the Recommendations section with \
 one sentence noting that comfort satisfaction cannot be quantified from the available data.
