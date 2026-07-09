@@ -31,12 +31,14 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 thermal-comfort/
 ├── src/                    # Device application code
 │   ├── app.py              # Entry point: touchscreen UI, Wi-Fi setup, capture orchestration
-│   ├── llm.py              # Claude API interaction, sensor data formatting, email dispatch
+│   ├── llm.py              # Claude API interaction, sensor data formatting, system prompt
 │   ├── sensors.py          # Hardware I/O: SI7021, MLX90640, PAV3015, BMM150, Pi camera
+│   ├── bmm150.py           # Custom BMM150 magnetometer driver with Bosch trim compensation
 │   ├── thermal_map.py      # Generates bicubic-upscaled inferno heatmap from IR frame
 │   ├── pmv_calculator.py   # PMV, PPD, TSV via pythermalcomfort (ISO 7730:2005)
 │   ├── readings.py         # Orchestrates a full capture: sensors → photo → heatmap → PMV → log
 │   ├── mailer.py           # HTML email dispatch via Gmail (SMTP)
+│   ├── connection.py       # Wi-Fi management: scan, connect, hotspot, connectivity check
 │   └── template.html       # Email report template (professional layout with appendix sections)
 ├── data/                   # Overwritten on every capture — only the most recent reading is kept
 │   ├── data.txt            # Pipe-delimited sensor values
@@ -63,7 +65,8 @@ cd thermal-comfort
 sudo apt install -y python3-picamera2
 pip install pythermalcomfort anthropic adafruit-blinka \
             adafruit-circuitpython-mlx90640 smbus2 \
-            matplotlib scipy numpy==1.26.4 evdev Pillow markdown --break-system-packages
+            matplotlib scipy numpy==1.26.4 evdev Pillow \
+            markdown screeninfo --break-system-packages
 ```
 
 ### 3. Enable I²C
@@ -117,7 +120,17 @@ chmod 600 ~/thermal-comfort/.env
 
 For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833) rather than your account password.
 
-### 5. Set up the systemd service
+### 5. Calibrate the compass heading
+
+The BMM150 heading offset accounts for how the sensor is physically mounted relative to true north. To find the correct value:
+
+1. Point the device at a known bearing (use your phone's compass app)
+2. Run the calibration script: `python3 test-files/test_bmm150.py`
+3. Note the heading it reports
+4. Calculate: `offset = known_bearing - reported_heading`
+5. Set `BMM150_OFFSET_DEG` in `src/sensors.py` to that value (currently defaults to `-16.0`)
+
+### 6. Set up the systemd service
 
 Create the service file:
 
@@ -225,21 +238,21 @@ Air speed from the sensor is automatically converted to relative air speed using
 
 ## LLM Analysis
 
-The Claude API (`claude-haiku-4-5`) receives:
+The Claude API (`claude-sonnet-4-6`) receives:
 
 - Labeled sensor readings (timestamp, air temp, humidity, MRT, air speed, compass heading with cardinal direction, PMV, PPD, TSV, notes)
 - HQ JPEG photo of the space
 - Bicubic-upscaled inferno thermal heatmap (brighter = warmer)
 
-The report is structured in six sections, modeled on a doctor's visit summary:
+The report is structured in six sections:
 
 | Section | Content |
 |---|---|
 | **Summary** | 2–3 sentence verdict: overall comfort level, PMV/PPD figures, one priority action |
 | **Room Description** | What the camera photo shows — layout, windows, blinds, occupancy |
-| **Comfort Assessment** | PMV/PPD/TSV interpreted in plain language against ISO 7730 bands |
-| **Findings** | Notable observations from the heatmap and sensors (radiant asymmetry, humidity, hot/cold zones) |
-| **Recommendations** | Individual occupant actions only — blinds, personal fan, extra layer, seat change, etc. Building systems are not criticized unless a malfunction is detected |
+| **Comfort Assessment** | PMV/PPD/TSV interpreted in plain language, including a gender-differentiated comfort note |
+| **Findings** | Notable observations from the heatmap and sensors (uneven surface temperatures, humidity, hot/cold zones). Compass heading and time-of-day context are only included when a window, skylight, or glazed surface is visible in the photo |
+| **Recommendations** | Individual occupant actions only — blinds, personal fan, extra layer, seat change, etc. Building systems are not criticized unless a malfunction is detected. When PPD exceeds 25 %, all applicable environmental actions are listed |
 | **Appendix A — Sensor Data** | Full table of raw sensor values |
 
 The emailed report also includes **Appendix B** (room photo) and **Appendix C** (thermal heatmap) rendered in a styled appendix block, separate from the main report body.
@@ -269,4 +282,5 @@ ISO 7730 recommends keeping PMV between **−0.5 and +0.5** (PPD < 10%).
 - [Pillow](https://python-pillow.org/) — Image conversion for the tkinter preview feed
 - [evdev](https://python-evdev.readthedocs.io/) — Raw touch event input for the OSOYOO touchscreen
 - [markdown](https://python-markdown.github.io/) — Converts Claude's markdown output to HTML for the email report
+- [screeninfo](https://pypi.org/project/screeninfo/) — Detects connected monitor geometry for correct window placement
 - [adafruit-blinka](https://github.com/adafruit/Adafruit_Blinka) — CircuitPython hardware abstraction for Raspberry Pi

@@ -81,6 +81,10 @@ show accumulated heat.
 - **Recommendations**: Two subheadings in order — **Environmental** (workspace conditions: \
 blinds, fan/heater placement, relocating) and **Personal** (occupant's body: clothing, \
 beverages, personal fan). Omit a subheading if it has no items. \
+When PPD exceeds 25 %, conditions are uncomfortable for a meaningful share of people — \
+list every applicable Environmental action an ordinary office worker can take (e.g. \
+repositioning a desk fan, moving to a cooler or warmer area, adjusting blinds if a window \
+is visible, plugging in a space heater), not just the single most obvious one. \
 When all parameters are in range: omit both subheadings and write "No adjustments are \
 required for the current conditions. Occupants who feel cool may add a clothing layer or \
 drink a warm beverage; those who feel warm may remove a layer or drink a cold beverage." \
