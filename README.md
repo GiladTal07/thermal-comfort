@@ -13,6 +13,8 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 5. Sends all sensor data and both images to Claude for analysis
 6. Emails the resulting report
 
+![Device enclosure with touchscreen](attachments/IMG_3814.jpeg)
+
 ## Hardware
 
 | Component | Purpose |
@@ -24,6 +26,12 @@ This project combines hardware sensors, the `pythermalcomfort` library, an infra
 | Pi Camera (libcamera) | High-resolution photo of the space |
 | BMM150 (I²C, address `0x13`, bus 3) | Compass heading |
 | OSOYOO 3.5" HDMI touchscreen | Live camera preview + on-screen CAPTURE button |
+
+![Internal wiring — Raspberry Pi 5, breadboard, and sensors inside the enclosure](attachments/IMG_3813.jpeg)
+
+![BMM150 compass sensor mounted on the side of the enclosure](attachments/IMG_3815.jpeg)
+
+![Pi camera lens and MLX90640 IR array mounted on the front of the enclosure](attachments/IMG_3816.jpeg)
 
 ## Project Structure
 
@@ -177,6 +185,8 @@ The service will now start automatically on every boot with no monitor needed.
 With the service running, the touchscreen shows a Wi-Fi setup screen on first boot. Enter the network credentials and tap **Connect**. Once connected, the live camera preview appears with a **CAPTURE** button at the bottom. Tap it to trigger a capture.
 
 On subsequent boots the device auto-connects using saved credentials and goes straight to the camera preview. A **Wi-Fi** button appears in the bottom-right corner of the camera screen only when the device is not connected.
+
+![Touchscreen showing live camera preview and CAPTURE button](attachments/IMG_3818.jpeg)
 
 The app runs two threads simultaneously:
 
