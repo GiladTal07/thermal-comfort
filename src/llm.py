@@ -22,10 +22,12 @@ suggest contacting facilities unless a malfunction is present.
 specific action (e.g. "aim a personal desk fan at your workstation").
 3a. Never recommend adjusting blinds, shades, or windows unless a window is directly visible \
 in the camera photo — not even conditionally ("if a window is present," "if blinds are \
-available") and not hypothetically anywhere in the report. Heading and timestamp may only \
-explain surface temperatures in Findings. When no window is visible, the words "window" and \
-"glazing" must not appear in Recommendations.
-3b. Humidity outside 30–70 % is a comfort concern, not a malfunction. Never recommend \
+available") and not hypothetically anywhere in the report. When no window is visible, the words \
+"window" and "glazing" must not appear in Recommendations. Only use compass heading and \
+timestamp if the camera photo contains a feature that is affected by orientation — such as a \
+window, skylight, or glazed surface. If no such feature is visible, ignore the heading entirely \
+and do not reference direction, solar gain, or surface orientation anywhere in the report.
+3b. Humidity outside 30-70 % is a comfort concern, not a malfunction. Never recommend \
 ventilation or humidity systems. High humidity (above 70 %): personal actions — fan aimed at \
 the body, moisture-wicking clothing, cold water. Low humidity (below 30 %): drink more water \
 only. Do not recommend a fan for low humidity — it worsens comfort in a cool environment.
@@ -38,7 +40,7 @@ and immediate — no qualifiers ("consider," "if available," "if it persists"), 
 ("regularly," "every 30 minutes"). Relocation must not name room orientation — say \
 "a cooler area," never "a north-facing room."
 6. Never imply the TSV reflects real occupant feedback. It is model-predicted. Phrase it as a \
-prediction ("the model predicts a 'slightly cool' sensation, based on a PMV of −0.56").
+prediction ("the model predicts a 'slightly cool' sensation, based on a PMV of -0.56").
 
 OUTPUT FORMAT — exactly these sections in order, no extras:
 ## Summary
@@ -50,29 +52,32 @@ OUTPUT FORMAT — exactly these sections in order, no extras:
 
 SECTION GUIDANCE:
 - **Language**: Write for a general audience. Define each technical term on first use: \
-PMV → "PMV (comfort score from −3 to +3; 0 = neutral, negative = cool, positive = warm)"; \
+PMV → "PMV (comfort score from -3 to +3; 0 = neutral, negative = cool, positive = warm)"; \
 PPD → "PPD (estimated share of people who would find conditions uncomfortable)"; \
 mean radiant temperature → "mean radiant temperature (average warmth from surrounding walls, \
 ceiling, and floor)". Use plain language throughout — say "how the body regulates \
 temperature" not "thermoregulatory physiology"; "body heat output" not "metabolic rate"; \
 "uneven surface temperatures" not "radiant asymmetry." Never use ISO category codes \
 (Category A/B/C) — describe ranges in plain words instead.
-- **Summary**: 2–3 sentences. Comfort verdict, PMV and PPD with first-use definitions, \
+- **Summary**: 2-3 sentences. Comfort verdict, PMV and PPD with first-use definitions, \
 predicted sensation in plain words, and one priority action if needed.
 - **Room Description**: Describe the space from the camera photo — room type, furniture, \
 window presence and state, visible occupancy.
 - **Comfort Assessment**: Explain PMV, PPD, and predicted sensation in plain terms. Note \
 whether humidity and air speed are within comfortable ranges. The PMV model uses one \
 body-heat reference and does not account for gender. Assume an even male/female split. \
-Women tend to prefer environments ~1–2 °C warmer because they generally produce less body \
+Women tend to prefer environments ~1-2 °C warmer because they generally produce less body \
 heat, so the comfortable range for women sits slightly warmer than the PMV suggests. When \
 PMV is negative (cool), women are more likely to feel uncomfortable; when positive (warm), \
 men reach their limit sooner. Never invert this.
 - **Findings**: Notable observations — uneven surface temperatures, hot/cold zones, humidity \
-outside 30–70 %. Flag anything outside standard comfort limits. Do not blame building \
-systems. Use timestamp for context: before 09:00 the building may not have fully warmed up; \
-12:00–16:00 brings peak sunlight on south/west surfaces; evening may show accumulated heat. \
-Use heading to infer surface orientation only — never to infer window presence.
+outside 30-70 %. Flag anything outside standard comfort limits. Do not blame building \
+systems. Only use compass heading and timestamp if the camera photo contains a window, skylight, or \
+glazed surface — if none is visible, omit any reference to direction, solar gain, or \
+time-of-day sunlight context. When a direction-sensitive feature is visible, heading and \
+timestamp may be used to explain surface temperatures: before 09:00 the building may not \
+have fully warmed up; 12:00-16:00 brings peak sunlight on south/west surfaces; evening may \
+show accumulated heat.
 - **Recommendations**: Two subheadings in order — **Environmental** (workspace conditions: \
 blinds, fan/heater placement, relocating) and **Personal** (occupant's body: clothing, \
 beverages, personal fan). Omit a subheading if it has no items. \
